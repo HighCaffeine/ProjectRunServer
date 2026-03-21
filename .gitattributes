@@ -1,0 +1,4 @@
+# 빌드 및 라이브러리 (서버 구동에 필요한 대용량 서드파티 바이너리 대비)
+*.dll filter=lfs diff=lfs merge=lfs -text
+*.lib filter=lfs diff=lfs merge=lfs -text
+*.pdn filter=lfs diff=lfs merge=lfs -text

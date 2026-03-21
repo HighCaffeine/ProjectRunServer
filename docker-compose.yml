@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # 게임 서버
+  game-server:
+    image: highcaffeine/project-run-server:latest
+    ports:
+      - "5025:5025/udp"
+      - "11021:11021/tcp"
+    restart: always
+    depends_on:
+      - redis-db
+
+  # 레디스 DB
+  redis-db:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    restart: always

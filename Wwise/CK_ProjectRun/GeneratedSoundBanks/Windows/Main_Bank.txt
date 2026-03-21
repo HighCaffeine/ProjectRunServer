@@ -1,0 +1,6 @@
+Event	ID	Name			Wwise Object Path	Notes
+	3650566532	Play_8BIT_RETRO_Coin_Collect_Two_Dual_Note_Fast_Twinkle_mono			\Default Work Unit\Play_8BIT_RETRO_Coin_Collect_Two_Dual_Note_Fast_Twinkle_mono	
+
+In Memory Audio	ID	Name	Audio source file		Wwise Object Path	Notes	Data Size
+	981878058	8BIT_RETRO_Coin_Collect_Two_Dual_Note_Fast_Twinkle_mono	.cache\7F\{7FBB1C5A-E11D-84C2-FFBB-102E32174B8D}.wem		\Containers\Default Work Unit\8BIT_RETRO_Coin_Collect_Two_Dual_Note_Fast_Twinkle_mono		15638
+

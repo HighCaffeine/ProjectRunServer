@@ -1,0 +1,22 @@
+# .dockerignore
+
+# 1. 버전 관리 및 에디터 임시 파일 차단
+.git
+.vs
+.vscode
+
+# 2. 소스 코드 및 중간 빌드 찌꺼기 차단
+*.cpp
+*.c
+*.h
+*.hpp
+*.obj
+*.ilk
+*.lib
+*.exp
+*.pdb
+*.log
+
+# 3. 불필요한 빌드 폴더 차단 (Release 폴더는 허용)
+x64/Debug
+build/Debug

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WwiseDocument Type="WorkUnit" ID="{F6D0BC03-2CEA-43FD-93F3-314C287EE4B8}" SchemaVersion="133">
+	<Containers>
+		<WorkUnit Name="Default Work Unit" ID="{F6D0BC03-2CEA-43FD-93F3-314C287EE4B8}" PersistMode="Standalone">
+			<ChildrenList>
+				<Folder Name="UI" ID="{E1E0A659-E62C-4415-ADDD-E64E09474C22}" ShortID="402574822">
+					<ChildrenList>
+						<Sound Name="UI_Currency_Coin_Add_01" ID="{A63D3641-E52C-4CDE-899D-91F77575371E}" ShortID="514107202">
+							<ReferenceList>
+								<Reference Name="Conversion">
+									<ObjectRef Name="Default Conversion Settings" ID="{6D1B890C-9826-4384-BF07-C15223E9FB56}" WorkUnitID="{DD076764-6C5C-4D6F-BEFF-F124FCBD708B}"/>
+								</Reference>
+								<Reference Name="OutputBus">
+									<ObjectRef Name="Main Audio Bus" ID="{1514A4D8-1DA6-412A-A17E-75CA0C2149F3}" WorkUnitID="{6893520C-D42D-40BA-BEBE-739C631AE539}"/>
+								</Reference>
+							</ReferenceList>
+							<ChildrenList>
+								<AudioFileSource Name="8BIT_RETRO_Coin_Collect_Two_Dual_Note_Fast_Twinkle_mono" ID="{7CC8CB52-E0D2-487E-AC86-E71897D2E385}">
+									<Language>SFX</Language>
+									<AudioFile>8BIT_RETRO_Coin_Collect_Two_Dual_Note_Fast_Twinkle_mono.wav</AudioFile>
+									<MediaIDList>
+										<MediaID ID="981878058"/>
+									</MediaIDList>
+								</AudioFileSource>
+							</ChildrenList>
+							<ObjectLists>
+								<ObjectList Name="RTPC">
+									<RTPC Name="" ID="{B5D70F59-2F89-4896-9F27-E026D49837D2}" ShortID="551919695">
+										<PropertyList>
+											<Property Name="PropertyName" Type="string" Value="OutputBusLowpass"/>
+										</PropertyList>
+										<ReferenceList>
+											<Reference Name="ControlInput">
+												<ObjectRef Name="RTPC_Player_HP" ID="{706326C8-9EE3-4FBD-82A1-B79D858019E6}" WorkUnitID="{94B1F0DE-EF27-4CA8-AD55-E9765706F7E0}"/>
+											</Reference>
+											<Reference Name="Curve">
+												<Custom>
+													<Curve Name="" ID="{D9F2A48D-2E1E-4EBC-8DF2-F9A759B63178}">
+														<PropertyList>
+															<Property Name="Flags" Type="int32" Value="65537"/>
+														</PropertyList>
+														<PointList>
+															<Point>
+																<XPos>0</XPos>
+																<YPos>75</YPos>
+																<Flags>5</Flags>
+																<SegmentShape>Exp2</SegmentShape>
+															</Point>
+															<Point>
+																<XPos>100</XPos>
+																<YPos>-100</YPos>
+																<Flags>37</Flags>
+															</Point>
+														</PointList>
+													</Curve>
+												</Custom>
+											</Reference>
+										</ReferenceList>
+									</RTPC>
+								</ObjectList>
+							</ObjectLists>
+							<ActiveSourceList>
+								<ActiveSource Name="8BIT_RETRO_Coin_Collect_Two_Dual_Note_Fast_Twinkle_mono" ID="{7CC8CB52-E0D2-487E-AC86-E71897D2E385}" Platform="Linked"/>
+							</ActiveSourceList>
+						</Sound>
+					</ChildrenList>
+				</Folder>
+			</ChildrenList>
+		</WorkUnit>
+	</Containers>
+</WwiseDocument>

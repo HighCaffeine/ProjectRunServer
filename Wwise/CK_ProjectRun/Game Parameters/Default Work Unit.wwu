@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WwiseDocument Type="WorkUnit" ID="{94B1F0DE-EF27-4CA8-AD55-E9765706F7E0}" SchemaVersion="133">
+	<GameParameters>
+		<WorkUnit Name="Default Work Unit" ID="{94B1F0DE-EF27-4CA8-AD55-E9765706F7E0}" PersistMode="Standalone">
+			<ChildrenList>
+				<Folder Name="Player" ID="{5582C021-64FC-4CCE-ABDF-293EBD0406AC}" ShortID="9203467">
+					<ChildrenList>
+						<GameParameter Name="RTPC_Player_HP" ID="{706326C8-9EE3-4FBD-82A1-B79D858019E6}">
+							<PropertyList>
+								<Property Name="InitialValue" Type="Real64" Value="0"/>
+							</PropertyList>
+						</GameParameter>
+					</ChildrenList>
+				</Folder>
+			</ChildrenList>
+		</WorkUnit>
+	</GameParameters>
+</WwiseDocument>
