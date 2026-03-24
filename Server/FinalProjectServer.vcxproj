@@ -135,7 +135,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>..\thirdparty;..\thirdparty\hiredis;..\thirdparty\spdlog-1.x\include;..\thirdparty\sentry-native;..\thirdparty\Detour\Include;..\thirdparty\recastnavigation\DetourTileCache\Include;..\thirdparty\recastnavigation\DetourTileCache\Source;..\thirdparty\recastnavigation\RecastDemo\Contrib\fastlz;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\thirdparty;..\thirdparty\hiredis;..\thirdparty\spdlog-1.x\include;..\thirdparty\sentry-native;..\thirdparty\Detour\Include;..\thirdparty\recastnavigation\DetourTileCache\Include;..\thirdparty\recastnavigation\DetourTileCache\Source;..\thirdparty\recastnavigation\RecastDemo\Contrib\fastlz;..\thirdparty\rapidjson\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
