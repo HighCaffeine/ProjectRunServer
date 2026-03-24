@@ -155,6 +155,7 @@
     <ClInclude Include="GameServer.h" />
     <ClInclude Include="LogManager.h" />
     <ClInclude Include="Mapdata.h" />
+    <ClInclude Include="MapDataLoader.h" />
     <ClInclude Include="NavMeshManager.h" />
     <ClInclude Include="Npc.h" />
     <ClInclude Include="Packet.h" />

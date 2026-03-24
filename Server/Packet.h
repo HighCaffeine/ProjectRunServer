@@ -80,12 +80,12 @@ enum class  PACKET_ID : UINT16
 	PLAYER_STATUS_NTF = 233,
 
 	// Path
-	MOVE_PATH_REQUEST = 241,
-	MOVE_PATH_RESPONSE = 242,
-	MOVE_PATH_NOTIFY = 243,
+	//MOVE_PATH_REQUEST = 241,
+	//MOVE_PATH_RESPONSE = 242,
+	//MOVE_PATH_NOTIFY = 243,
 
 	// Physics
-	PLAYER_ACTION_REQUEST = 251,
+	//PLAYER_ACTION_REQUEST = 251,
 
 	//인벤 / 상점용
 	INVENTORY_INFO = 301,       // 접속갱신 시 인벤토리 정보 전송
@@ -276,31 +276,40 @@ struct ROOM_CHAT_NOTIFY_PACKET : public PACKET_HEADER
 #pragma region Move Packets
 
 //구버전 이동 패킷
-struct MOVE_PATH_REQUEST_PACKET : public PACKET_HEADER
-{
-	INT64 userUUID;
-	Vector3 startPos;
-	Vector3 endPos;
-
-	MOVE_PATH_REQUEST_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MOVE_PATH_REQUEST) {}
-};
-struct MOVE_PATH_RESPONSE_PACKET : public PACKET_HEADER
-{
-	INT64 userUUID;
-	Vector3 path[10];
-	INT16 pathCount;
-
-	MOVE_PATH_RESPONSE_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MOVE_PATH_RESPONSE) {}
-};
+//struct MOVE_PATH_REQUEST_PACKET : public PACKET_HEADER
+//{
+//	INT64 userUUID;
+//	Vector3 startPos;
+//	Vector3 endPos;
+//
+//	MOVE_PATH_REQUEST_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MOVE_PATH_REQUEST) {}
+//};
+//struct MOVE_PATH_RESPONSE_PACKET : public PACKET_HEADER
+//{
+//	INT64 userUUID;
+//	Vector3 path[10];
+//	INT16 pathCount;
+//
+//	MOVE_PATH_RESPONSE_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MOVE_PATH_RESPONSE) {}
+//};
 
 //신버전 이동 패킷
-// Client -> Server: WASD 입력 패킷
-struct PLAYER_MOVEMENT_PACKET : public PACKET_HEADER 
+// Client -> Server: WASD 입력 패킷 (Axis)
+//struct PLAYER_MOVEMENT_PACKET : public PACKET_HEADER 
+//{
+//	INT64 userUUID;
+//	UINT32 inputSeq;    // 클라이언트 생성 번호
+//	float dx;           // Horizontal (-1.0 ~ 1.0)
+//	float dz;           // Vertical (-1.0 ~ 1.0)
+//	PLAYER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_MOVEMENT) {}
+//};
+
+// Client -> server 확정 좌표 버전
+struct PLAYER_MOVEMENT_PACKET : public PACKET_HEADER
 {
 	INT64 userUUID;
 	UINT32 inputSeq;    // 클라이언트 생성 번호
-	float dx;           // Horizontal (-1.0 ~ 1.0)
-	float dz;           // Vertical (-1.0 ~ 1.0)
+	Vector3 targetPos;	//클라이언트 확정 좌표
 	PLAYER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_MOVEMENT) {}
 };
 
@@ -329,13 +338,13 @@ struct PLAYER_STATUS_NTF_PACKET : public PACKET_HEADER
 #pragma region Player Physics
 enum class ACTION_TYPE : UINT8 { PUSH = 0, PULL = 1 };
 
-struct PLAYER_ACTION_REQUEST_PACKET : public PACKET_HEADER
-{
-	ACTION_TYPE actionType;
-	INT32 targetUUID;
-
-	PLAYER_ACTION_REQUEST_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_ACTION_REQUEST) {}
-};
+//struct PLAYER_ACTION_REQUEST_PACKET : public PACKET_HEADER
+//{
+//	ACTION_TYPE actionType;
+//	INT32 targetUUID;
+//
+//	PLAYER_ACTION_REQUEST_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_ACTION_REQUEST) {}
+//};
 #pragma endregion
 
 #pragma region Shop Packet

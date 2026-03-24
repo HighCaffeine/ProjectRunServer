@@ -27,8 +27,11 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_LEAVE_REQUEST] = &PacketManager::ProcessLeaveRoom;
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_MOVEMENT] = &PacketManager::ProcessPlayerMovement;
-	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_ACTION_REQUEST] = &PacketManager::ProcessPlayerAction;
 	
+	//물리 제거
+	//mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_ACTION_REQUEST] = &PacketManager::ProcessPlayerAction;
+	
+
 	//레디스 응답 패킷
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_LOAD_INVENTORY] = &PacketManager::ProcessInventoryDBResult;
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_TRADE_EXCHANGE] = &PacketManager::ProcessTradeDBResult;
@@ -550,69 +553,72 @@ void PacketManager::ProcessPlayerMovement(UINT32 clientIndex_, UINT16 packetSize
 
 	if (pUser) 
 	{
+		//물리 변경으로 최종 확정 좌표를 client로부터 받아서 이동
+
 		// 서버의 Actor 객체에 목적지 좌표만 설정함
 		// 실제 이동은 LogicThread -> Room::Update -> Actor::UpdateServerPhysics에서 처리
-		pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
+		//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
+		pUser->SetTarget(pMovePkt->targetPos, pMovePkt->inputSeq);
 	}
 }
 
-void PacketManager::ProcessPlayerAction(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
-{
-	auto pReq = (PLAYER_ACTION_REQUEST_PACKET*)pPacket_;
-	auto reqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (!reqUser) return;
-
-	auto pRoom = mRoomManager->GetRoomByNumber(reqUser->GetCurrentRoom());
-	if (!pRoom) return;
-
-	Actor* target = pRoom->GetActorByUUID(pReq->targetUUID);
-	if (target)
-	{
-		bool isPush = (pReq->actionType == ACTION_TYPE::PUSH);
-
-		Vector3 myPos = reqUser->GetPosition();
-		Vector3 targetPos = target->GetPosition();
-
-		// 타겟 위치에서 내 위치를 바라보는 방향 벡터
-		Vector3 toMe = { myPos.x - targetPos.x, 0.0f, myPos.z - targetPos.z };
-		float dist = sqrt(toMe.x * toMe.x + toMe.z * toMe.z);
-		if (dist > 0) { toMe.x /= dist; toMe.z /= dist; }
-
-		// 타겟의 정면 벡터
-		Vector3 tForward = Quaternion_Multiply(target->GetRotation(), Vector3_forward());
-
-		// 내적 값이 0 이하면, 내가 타겟의 시야 반대편에 있음
-		float dot = (tForward.x * toMe.x) + (tForward.z * toMe.z);
-
-		if (dot >= 0.5f)
-		{
-			printf("[Skill] 뒤통수 판정 성공 \n");
-			Vector3 dir = { targetPos.x - myPos.x, 0.0f, targetPos.z - myPos.z };
-			float dist = sqrt(dir.x * dir.x + dir.z * dir.z);
-
-			if (dist > 0.0f) { dir.x /= dist; dir.z /= dist; }
-
-			if (isPush)
-			{
-				// N극-N극 밀어내기 (30의 힘으로 넉백)
-				target->ApplyForce(dir, 30.0f, 0.5f);
-				printf("[Physics] User %d Push User %d\n", clientIndex_, pReq->targetUUID);
-			}
-			else
-			{
-				// N극-S극 당겨오기 (딱 내 앞까지만 오도록 거리 계산)
-				Vector3 pullDir = { -dir.x, 1.0f, -dir.z };
-				// 내 위치 기준 1.5m 앞까지만 당김 (나랑 완벽히 겹치는 것 방지)
-				float pullDist = (dist > 1.5f) ? (dist - 1.5f) : 0.0f;
-				// 0.5초 동안 당김 속도 = 거리 / 시간
-				float pullSpeed = pullDist / 0.5f;
-				target->ApplyForce(pullDir, pullSpeed, 0.5f);
-
-				printf("[Physics] User %d Pull User %d\n", clientIndex_, pReq->targetUUID);
-			}
-		}
-	}
-}
+//void PacketManager::ProcessPlayerAction(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+//{
+//	auto pReq = (PLAYER_ACTION_REQUEST_PACKET*)pPacket_;
+//	auto reqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+//	if (!reqUser) return;
+//
+//	auto pRoom = mRoomManager->GetRoomByNumber(reqUser->GetCurrentRoom());
+//	if (!pRoom) return;
+//
+//	Actor* target = pRoom->GetActorByUUID(pReq->targetUUID);
+//	if (target)
+//	{
+//		bool isPush = (pReq->actionType == ACTION_TYPE::PUSH);
+//
+//		Vector3 myPos = reqUser->GetPosition();
+//		Vector3 targetPos = target->GetPosition();
+//
+//		// 타겟 위치에서 내 위치를 바라보는 방향 벡터
+//		Vector3 toMe = { myPos.x - targetPos.x, 0.0f, myPos.z - targetPos.z };
+//		float dist = sqrt(toMe.x * toMe.x + toMe.z * toMe.z);
+//		if (dist > 0) { toMe.x /= dist; toMe.z /= dist; }
+//
+//		// 타겟의 정면 벡터
+//		Vector3 tForward = Quaternion_Multiply(target->GetRotation(), Vector3_forward());
+//
+//		// 내적 값이 0 이하면, 내가 타겟의 시야 반대편에 있음
+//		float dot = (tForward.x * toMe.x) + (tForward.z * toMe.z);
+//
+//		if (dot >= 0.5f)
+//		{
+//			printf("[Skill] 뒤통수 판정 성공 \n");
+//			Vector3 dir = { targetPos.x - myPos.x, 0.0f, targetPos.z - myPos.z };
+//			float dist = sqrt(dir.x * dir.x + dir.z * dir.z);
+//
+//			if (dist > 0.0f) { dir.x /= dist; dir.z /= dist; }
+//
+//			if (isPush)
+//			{
+//				// N극-N극 밀어내기 (30의 힘으로 넉백)
+//				target->ApplyForce(dir, 30.0f, 0.5f);
+//				printf("[Physics] User %d Push User %d\n", clientIndex_, pReq->targetUUID);
+//			}
+//			else
+//			{
+//				// N극-S극 당겨오기 (딱 내 앞까지만 오도록 거리 계산)
+//				Vector3 pullDir = { -dir.x, 1.0f, -dir.z };
+//				// 내 위치 기준 1.5m 앞까지만 당김 (나랑 완벽히 겹치는 것 방지)
+//				float pullDist = (dist > 1.5f) ? (dist - 1.5f) : 0.0f;
+//				// 0.5초 동안 당김 속도 = 거리 / 시간
+//				float pullSpeed = pullDist / 0.5f;
+//				target->ApplyForce(pullDir, pullSpeed, 0.5f);
+//
+//				printf("[Physics] User %d Pull User %d\n", clientIndex_, pReq->targetUUID);
+//			}
+//		}
+//	}
+//}
 
 void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
@@ -1166,7 +1172,8 @@ void PacketManager::UDPRecvThread()
 	{
 		int recvLen = recvfrom(mUdpSocket, buf, 2048, 0, (sockaddr*)&clientAddr, &addrLen);
 
-		if (recvLen > 0) {
+		if (recvLen > 0) 
+		{
 			auto pHeader = (PACKET_HEADER*)buf;
 			m_TotalRecvBytes += recvLen;
 			m_GrandTotalSendBytes += m_TotalRecvBytes;
@@ -1199,7 +1206,9 @@ void PacketManager::UDPRecvThread()
 
 					// 서버측 Actor에 목적지 좌표 설정
 					//pUser->SetTarget(pMovePkt->targetPos, pMovePkt->inputSeq);	미니맵 이동
-					pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
+					//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
+
+					pUser->SetTarget(pMovePkt->targetPos, pMovePkt->inputSeq);
 				}
 				else
 				{
