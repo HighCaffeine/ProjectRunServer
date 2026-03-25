@@ -77,6 +77,8 @@ bool PacketManager::Run()
 
 	int retryCount = 0;
 	const char* redisIp = std::getenv("REDIS_IP");
+
+	Sleep(5000);
 	while (true)
 	{
 		if (mRedisMgr->Run(redisIp ? redisIp : "host.docker.internal", 6379, 2))
@@ -88,7 +90,7 @@ bool PacketManager::Run()
 		retryCount++;
 		printf("[RETRY %d] Redis connection failed. Retrying in 1s...\n", retryCount);
 
-		if (retryCount > 10)
+		if (retryCount > 15)
 		{
 			printf("[FATAL] Redis connection failed after 10 attempts.\n");
 			return false;
@@ -558,7 +560,7 @@ void PacketManager::ProcessPlayerMovement(UINT32 clientIndex_, UINT16 packetSize
 		// 서버의 Actor 객체에 목적지 좌표만 설정함
 		// 실제 이동은 LogicThread -> Room::Update -> Actor::UpdateServerPhysics에서 처리
 		//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
-		pUser->SetTarget(pMovePkt->targetPos, pMovePkt->inputSeq);
+		pUser->SetTarget(pMovePkt->targetPos, pMovePkt->targetRot, pMovePkt->inputSeq);
 	}
 }
 
@@ -1208,7 +1210,7 @@ void PacketManager::UDPRecvThread()
 					//pUser->SetTarget(pMovePkt->targetPos, pMovePkt->inputSeq);	미니맵 이동
 					//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
 
-					pUser->SetTarget(pMovePkt->targetPos, pMovePkt->inputSeq);
+					pUser->SetTarget(pMovePkt->currentPos, pMovePkt->targetRot, pMovePkt->inputSeq);
 				}
 				else
 				{

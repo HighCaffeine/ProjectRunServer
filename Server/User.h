@@ -32,7 +32,6 @@ public:
 	}
 
 		
-	//TODO SetPacketData, GetPacket 함수를 멀티스레드에 호출하고 있다면 공유변수에 lock을 걸어야 한다
 	void SetPacketData(const UINT32 dataSize_, char* pData_)
 	{
 		std::lock_guard<std::mutex> guard(mLock);

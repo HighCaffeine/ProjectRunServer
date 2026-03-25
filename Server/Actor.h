@@ -123,19 +123,35 @@ public:
 	}
 
 
-	//마우스 이동 설정
-	void SetTarget(Vector3& clickedPos, UINT32 seq)
+	////마우스 이동 설정
+	//void SetTarget(Vector3& clickedPos, UINT32 seq)
+	//{
+	//	targetPos = clickedPos;
+	//	lastInputSeq = seq;
+	//	isMoving = true;
+	//}
+
+	//// WASD 이동 설정
+	//void SetInput(float dx, float dy, UINT32 seq)
+	//{
+	//	inputX = dx;
+	//	inputZ = dy;
+	//	lastInputSeq = seq;
+	//}
+
+	void SetTarget(Vector3& pos, Quaternion& rot, Vector3& vel, UINT32 seq)
 	{
-		targetPos = clickedPos;
+		targetPos = pos;
+		targetRot = rot;
+		velocity = vel;
 		lastInputSeq = seq;
 		isMoving = true;
 	}
 
-	// WASD 이동 설정
-	void SetInput(float dx, float dy, UINT32 seq)
+	void SetInput(Vector3& pos, Quaternion& rot, UINT32 seq)
 	{
-		inputX = dx;
-		inputZ = dy;
+		targetPos = pos;
+		targetRot = rot;
 		lastInputSeq = seq;
 	}
 
@@ -360,6 +376,8 @@ private:
 	bool isMoving = false;
 	Vector3 serverPos;   // 서버 확정 현재 위치
 	Vector3 targetPos;   // 마우스로 클릭된 최종 목적지
+	Vector3 velocity;	// 속도
+	Quaternion targetRot;
 
 	float inputX = 0, inputZ = 0;
 

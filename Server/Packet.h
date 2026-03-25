@@ -308,19 +308,28 @@ struct ROOM_CHAT_NOTIFY_PACKET : public PACKET_HEADER
 struct PLAYER_MOVEMENT_PACKET : public PACKET_HEADER
 {
 	INT64 userUUID;
-	UINT32 inputSeq;    // 클라이언트 생성 번호
-	Vector3 targetPos;	//클라이언트 확정 좌표
+	UINT32 inputSeq;		// 클라이언트 생성 번호
+	Vector3 currentPos;		//클라이언트 확정 좌표
+	Quaternion currentRot;	//클라 회전치
+
+	//Axis
+	float axisH;
+	float axisV;
 	PLAYER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_MOVEMENT) {}
 };
 
 // Server -> Client: 월드 상태 동기화 (AOI 적용 대상)
 struct UPDATE_PLAYER_MOVEMENT_PACKET : public PACKET_HEADER 
 {
-	UINT32 lastInputSeq; // 서버가 처리 완료한 해당 유저의 마지막 입력 번호
-	INT64 userUUID;      // 대상 유저 고유 ID
-	Vector3 currentPos;  // 서버 물리 엔진이 확정한 현재 좌표
-	float currentSpeed;  // 모디파이어가 적용된 현재 실시간 속도
-	bool isMoving;       // 현재 이동 여부 플래그
+	UINT32 lastInputSeq;	// 서버가 처리 완료한 해당 유저의 마지막 입력 번호
+	INT64 userUUID;			// 대상 유저 고유 ID
+	Vector3 currentPos;		// 서버 물리 엔진이 확정한 현재 좌표
+	Quaternion currentRot;
+	
+	//axis
+	float axisH;
+	float axisV;
+	float currentSpeed;		// 모디파이어가 적용된 현재 실시간 속도
 
 	UPDATE_PLAYER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::UPDATE_PLAYER_MOVEMENT) {}
 };
