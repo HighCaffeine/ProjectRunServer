@@ -313,8 +313,7 @@ struct PLAYER_MOVEMENT_PACKET : public PACKET_HEADER
 	Quaternion currentRot;	//클라 회전치
 
 	//Axis
-	float axisH;
-	float axisV;
+	Vector2 axis;
 	PLAYER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_MOVEMENT) {}
 };
 
@@ -327,9 +326,8 @@ struct UPDATE_PLAYER_MOVEMENT_PACKET : public PACKET_HEADER
 	Quaternion currentRot;
 	
 	//axis
-	float axisH;
-	float axisV;
-	float currentSpeed;		// 모디파이어가 적용된 현재 실시간 속도
+	Vector2 axis;
+	//Sfloat currentSpeed;		// 모디파이어가 적용된 현재 실시간 속도
 
 	UPDATE_PLAYER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::UPDATE_PLAYER_MOVEMENT) {}
 };

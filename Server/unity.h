@@ -13,6 +13,12 @@ constexpr float BASE_SPEED = 5.0f;
 constexpr int PLAYER_SPEED = 5;
 constexpr int TRADE_INVENTORY_SIZE = 9;
 
+typedef struct Vector2
+{
+    float x;
+    float y;
+} Vector2;
+
 typedef struct Vector3
 {
     float x;

@@ -84,6 +84,11 @@ public:
 		return mIndex;
 	}
 
+	Vector2 GetAxis()
+	{
+		return axis;
+	}
+
 	std::string GetUserId() const
 	{
 		return  mUserID;
@@ -139,11 +144,11 @@ public:
 	//	lastInputSeq = seq;
 	//}
 
-	void SetTarget(Vector3& pos, Quaternion& rot, Vector3& vel, UINT32 seq)
+	void SetTarget(Vector3& pos, Quaternion& rot, Vector2& axis, UINT32 seq)
 	{
 		targetPos = pos;
 		targetRot = rot;
-		velocity = vel;
+		this->axis = axis;
 		lastInputSeq = seq;
 		isMoving = true;
 	}
@@ -321,7 +326,7 @@ public:
 				mForceDuration = 0.0f;
 				if (mIsCube && mObstacleRef == 0)
 				{
-					mObstacleRef = NavMeshManager::GetInstance()->AddObstacle(serverPos, 1.0f, 2.0f);
+					//mObstacleRef = NavMeshManager::GetInstance()->AddObstacle(serverPos, 1.0f, 2.0f);
 				}
 			}
 		}
@@ -330,7 +335,8 @@ public:
 		if (!isMoving) return;
 
 		Vector3 realPos;
-		if (NavMeshManager::GetInstance()->GetValidMovePosition(currentPos, nextPos, realPos))
+		//임시 nav 스킵
+		if (true || NavMeshManager::GetInstance()->GetValidMovePosition(currentPos, nextPos, realPos))
 		{
 			serverPos = realPos;
 		}
@@ -376,7 +382,7 @@ private:
 	bool isMoving = false;
 	Vector3 serverPos;   // 서버 확정 현재 위치
 	Vector3 targetPos;   // 마우스로 클릭된 최종 목적지
-	Vector3 velocity;	// 속도
+	Vector2 axis;		 // 속도
 	Quaternion targetRot;
 
 	float inputX = 0, inputZ = 0;

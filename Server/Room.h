@@ -279,9 +279,11 @@ public:
 			syncPkt.lastInputSeq = pUser->GetLastInputSeq();
 			syncPkt.userUUID = pUser->GetNetConnIdx();
 			syncPkt.currentPos = pUser->GetPosition();
-			syncPkt.isMoving = pUser->GetIsMoving();
-			syncPkt.currentSpeed = pUser->GetCurrentSpeed();
-
+			syncPkt.currentRot = pUser->GetRotation();
+			syncPkt.axis = pUser->GetAxis();
+			
+			//syncPkt.isMoving = pUser->GetIsMoving();
+			//syncPkt.currentSpeed = pUser->GetCurrentSpeed();
 			//SendToAllUser(syncPkt.PacketLength, (char*)&syncPkt, pUser->GetNetConnIdx(), false);
 			for (auto pTarget : mUserList) 
 			{
@@ -300,9 +302,11 @@ public:
 			syncPkt.lastInputSeq = pNpc->GetLastInputSeq();
 			syncPkt.userUUID = pNpc->GetNetConnIdx();
 			syncPkt.currentPos = pNpc->GetPosition();
-			syncPkt.isMoving = pNpc->GetIsMoving();
-			syncPkt.currentSpeed = pNpc->GetCurrentSpeed();
+			syncPkt.currentRot = pNpc->GetRotation();
+			syncPkt.axis = pNpc->GetAxis();
 
+			//syncPkt.isMoving = pNpc->GetIsMoving();
+			//syncPkt.currentSpeed = pNpc->GetCurrentSpeed();
 			//SendToAllUser(syncPkt.PacketLength, (char*)&syncPkt, pNpc->GetNetConnIdx(), false);
 			for (auto pTarget : mUserList)
 			{
