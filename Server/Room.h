@@ -337,6 +337,8 @@ private:
 		return true;
 	}
 
+	Vector3 bossLinePos;
+
 	std::recursive_mutex mLock;
 	INT32 mRoomNum = -1;
 
