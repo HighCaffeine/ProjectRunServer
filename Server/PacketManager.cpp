@@ -620,6 +620,23 @@ void PacketManager::ProcessPlayerAction(UINT32 clientIndex_, UINT16 packetSize_,
 	//		}
 	//	}
 	//}
+
+	auto pReq = (PLAYER_ACTION_REQUEST_PACKET*)pPacket_;
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		PLAYER_ACTION_NTF_PACKET ntfPkt;
+		ntfPkt.attackerUUID = clientIndex_;   // 시전자
+		ntfPkt.targetUUID = pReq->targetUUID; // 피격자
+		ntfPkt.actionType = pReq->actionType;
+
+		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+
+		printf("[Action] %lld used skill(type:%d) on %lld\n", ntfPkt.attackerUUID, ntfPkt.actionType, ntfPkt.targetUUID);
+	}
 }
 
 void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
@@ -662,13 +679,13 @@ void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSiz
 	}
 
 	// 큐브 소환 명령어
-	if (cmdMessage.find("/spawn cube") == 0)
+	/*if (cmdMessage.find("/spawn cube") == 0)
 	{
 		float cx = 5.0f, cz = 5.0f;
 		sscanf_s(cmdMessage.c_str(), "/spawn cube %f %f", &cx, &cz);
 		pRoom->EnterCube(cx, cz);
 		return;
-	}
+	}*/
 	
 	//shop 업데이트
 	if (cmdMessage.find("/shop_reset", 0) == 0)

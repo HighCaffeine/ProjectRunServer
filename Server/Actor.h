@@ -146,6 +146,10 @@ public:
 
 	void SetTarget(Vector3& pos, Quaternion& rot, Vector2& axis, UINT32 seq)
 	{
+		serverPos = pos;
+		position = pos;
+		rotation = rot;
+
 		targetPos = pos;
 		targetRot = rot;
 		this->axis = axis;
@@ -313,43 +317,39 @@ public:
 		}
 
 		// 외부 물리력 (밀치기/당기기) 강제 이동
-		bool hasForceMove = false;
-		if (mForceDuration > 0.0f)
-		{
-			nextPos.x += mForceVelocity.x * dt;
-			nextPos.z += mForceVelocity.z * dt;
-			mForceDuration -= dt;
-			hasForceMove = true;
+		//bool hasForceMove = false;
+		//if (mForceDuration > 0.0f)
+		//{
+		//	nextPos.x += mForceVelocity.x * dt;
+		//	nextPos.z += mForceVelocity.z * dt;
+		//	mForceDuration -= dt;
+		//	hasForceMove = true;
 
-			if (mForceDuration <= 0.0f)
-			{
-				mForceDuration = 0.0f;
-				if (mIsCube && mObstacleRef == 0)
-				{
-					//mObstacleRef = NavMeshManager::GetInstance()->AddObstacle(serverPos, 1.0f, 2.0f);
-				}
-			}
-		}
+		//	if (mForceDuration <= 0.0f)
+		//	{
+		//		mForceDuration = 0.0f;
+		//		if (mIsCube && mObstacleRef == 0)
+		//		{
+		//			//mObstacleRef = NavMeshManager::GetInstance()->AddObstacle(serverPos, 1.0f, 2.0f);
+		//		}
+		//	}
+		//}
 
-		isMoving = (hasInputMove || hasForceMove);
-		if (!isMoving) return;
+		//isMoving = (hasInputMove || hasForceMove);
+		//if (!isMoving) return;
 
-		Vector3 realPos;
-		//임시 nav 스킵
-		if (true || NavMeshManager::GetInstance()->GetValidMovePosition(currentPos, nextPos, realPos))
-		{
-			serverPos = realPos;
-		}
-		else
-		{
-			mForceDuration = 0.0f;
-		}
+		//Vector3 realPos;
+		////임시 nav 스킵
+		//if (true || NavMeshManager::GetInstance()->GetValidMovePosition(currentPos, nextPos, realPos))
+		//{
+		//	serverPos = realPos;
+		//}
+		//else
+		//{
+		//	mForceDuration = 0.0f;
+		//}
 	}
 
-	bool mIsCube = false;
-	dtObstacleRef mObstacleRef = 0;
-	Vector3 mForceVelocity = { 0.0f, 0.0f, 0.0f };
-	float mForceDuration = 0.0f;
 
 	// 위치 강제 세팅
 	void SetPosition(Vector3 pos) 
@@ -358,24 +358,28 @@ public:
 		position = pos;
 	}
 
+	/*bool mIsCube = false;
+	dtObstacleRef mObstacleRef = 0;
+	Vector3 mForceVelocity = { 0.0f, 0.0f, 0.0f };
+	float mForceDuration = 0.0f;*/
 	// 자력 적용
-	void ApplyForce(Vector3 dir, float power, float duration)
-	{
-		float len = sqrt(dir.x * dir.x + dir.z * dir.z);
-		if (len > 0.0f) { dir.x /= len; dir.z /= len; }
+	//void ApplyForce(Vector3 dir, float power, float duration)
+	//{
+	//	float len = sqrt(dir.x * dir.x + dir.z * dir.z);
+	//	if (len > 0.0f) { dir.x /= len; dir.z /= len; }
 
-		mForceVelocity.x = dir.x * power;
-		mForceVelocity.z = dir.z * power;
-		mForceDuration = duration;
-		isMoving = true;
+	//	mForceVelocity.x = dir.x * power;
+	//	mForceVelocity.z = dir.z * power;
+	//	mForceDuration = duration;
+	//	isMoving = true;
 
-		// 길을 막지 않도록 임시 해제
-		if (mIsCube && mObstacleRef != 0) 
-		{
-			NavMeshManager::GetInstance()->RemoveObstacle(mObstacleRef);
-			mObstacleRef = 0;
-		}
-	}
+	//	// 길을 막지 않도록 임시 해제
+	//	if (mIsCube && mObstacleRef != 0) 
+	//	{
+	//		NavMeshManager::GetInstance()->RemoveObstacle(mObstacleRef);
+	//		mObstacleRef = 0;
+	//	}
+	//}
 
 private:
 #pragma region Move

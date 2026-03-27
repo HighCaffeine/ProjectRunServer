@@ -85,8 +85,10 @@ enum class  PACKET_ID : UINT16
 	//MOVE_PATH_NOTIFY = 243,
 
 	// Physics
-	//PLAYER_ACTION_REQUEST = 251,
-
+	PLAYER_ACTION_REQUEST = 251,
+	PLAYER_ACTION_NTF = 252,
+	GIMMICK_INTERACT = 253,
+	
 	//인벤 / 상점용
 	INVENTORY_INFO = 301,       // 접속갱신 시 인벤토리 정보 전송
 	SHOP_INFO = 302,            // 상점 정보 - 현재 판매 아이템, 다음 갱신 시간
@@ -313,7 +315,8 @@ struct PLAYER_MOVEMENT_PACKET : public PACKET_HEADER
 	Quaternion currentRot;	//클라 회전치
 
 	//Axis
-	Vector2 axis;
+	float axisH;
+	float axisV;
 	PLAYER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_MOVEMENT) {}
 };
 
@@ -343,15 +346,30 @@ struct PLAYER_STATUS_NTF_PACKET : public PACKET_HEADER
 #pragma endregion
 
 #pragma region Player Physics
-enum class ACTION_TYPE : UINT8 { PUSH = 0, PULL = 1 };
+struct PLAYER_ACTION_REQUEST_PACKET : public PACKET_HEADER
+{
+	INT64 targetUUID;
+	UINT8 actionType;
+	PLAYER_ACTION_REQUEST_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_ACTION_REQUEST) {}
+};
 
-//struct PLAYER_ACTION_REQUEST_PACKET : public PACKET_HEADER
-//{
-//	ACTION_TYPE actionType;
-//	INT32 targetUUID;
-//
-//	PLAYER_ACTION_REQUEST_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_ACTION_REQUEST) {}
-//};
+// [서버 -> 모두] 브로드캐스트
+struct PLAYER_ACTION_NTF_PACKET : public PACKET_HEADER
+{
+	INT64 attackerUUID;
+	INT64 targetUUID;
+	UINT8 actionType;
+	PLAYER_ACTION_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_ACTION_NTF) {}
+};
+
+struct PLAYER_GIMMICK_INTERACT : public PACKET_HEADER
+{
+	INT64 attackerUUID;
+	INT64 targetUUID;
+	UINT8 actionType;
+	PLAYER_ACTION_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_ACTION_NTF) {}
+};
+
 #pragma endregion
 
 #pragma region Shop Packet

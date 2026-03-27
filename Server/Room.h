@@ -157,21 +157,34 @@ public:
 	}
 
 	// 큐브 소환 함수
-	UINT16 EnterCube(float x, float z)
+	//UINT16 EnterCube(float x, float z)
+	//{
+	//	std::lock_guard<std::recursive_mutex> guard(mLock);
+	//	Npc* newNpc = CreateNpc();
+	//	newNpc->EnterRoom(mRoomNum);
+
+	//	// 큐브 속성 부여 및 좌표 설정
+	//	newNpc->mIsCube = true;
+	//	newNpc->SetPosition({ x, 0.0f, z });
+
+	//	// TileCache에 동적 장애물 구역으로 등록
+	//	newNpc->mObstacleRef = NavMeshManager::GetInstance()->AddObstacle(newNpc->GetPosition(), 1.0f, 2.0f);
+
+	//	NotifyUserEnter(newNpc->GetNetConnIdx(), newNpc->GetUserId());
+	//	return (UINT16)ERROR_CODE::NONE;
+	//}
+
+	void BroadcastPacket(UINT16 packetSize, char* pPacket)
 	{
 		std::lock_guard<std::recursive_mutex> guard(mLock);
-		Npc* newNpc = CreateNpc();
-		newNpc->EnterRoom(mRoomNum);
 
-		// 큐브 속성 부여 및 좌표 설정
-		newNpc->mIsCube = true;
-		newNpc->SetPosition({ x, 0.0f, z });
-
-		// TileCache에 동적 장애물 구역으로 등록
-		newNpc->mObstacleRef = NavMeshManager::GetInstance()->AddObstacle(newNpc->GetPosition(), 1.0f, 2.0f);
-
-		NotifyUserEnter(newNpc->GetNetConnIdx(), newNpc->GetUserId());
-		return (UINT16)ERROR_CODE::NONE;
+		for (auto pTarget : mUserList)
+		{
+			if (pTarget != nullptr)
+			{
+				SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), packetSize, pPacket);
+			}
+		}
 	}
 
 	void SendToAllUser(const UINT16 dataSize_, char* data_, const INT32 passUserIndex_, bool exceptMe)
