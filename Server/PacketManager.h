@@ -81,7 +81,11 @@ private:
 	void ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessPlayerMovement(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	
+	//拱府 贸府
 	void ProcessPlayerAction(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	void ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
 	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	//牢亥贸府

@@ -31,8 +31,9 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_MOVEMENT] = &PacketManager::ProcessPlayerMovement;
 	
-	//물리 제거
-	//mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_ACTION_REQUEST] = &PacketManager::ProcessPlayerAction;
+	//플레이어 물리 / 기믹 처리
+	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_ACTION_REQUEST] = &PacketManager::ProcessPlayerAction;
+	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST] = &PacketManager::ProcessGimmickInteract;
 	
 
 	//레디스 응답 패킷
@@ -672,6 +673,30 @@ void PacketManager::ProcessPlayerAction(UINT32 clientIndex_, UINT16 packetSize_,
 		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 
 		printf("[Action] %lld used skill(type:%d) on %lld\n", ntfPkt.attackerUUID, ntfPkt.actionType, ntfPkt.targetUUID);
+	}
+}
+
+void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pReq = (PLAYER_GIMMICK_INTERACT_REQUEST_PACKET*)pPacket_;
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+
+	if (pRoom)
+	{
+		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+		ntfPkt.activeUUID = pReq->activeUUID;
+		ntfPkt.gimmickID = pReq->gimmickID;
+		ntfPkt.state = pReq->state;
+		ntfPkt.targetPos = pReq->targetPos;
+		ntfPkt.param = pReq->param;
+
+		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+
+		printf("[Gimmick] %lld gimmick id : %d, pos : ", ntfPkt.activeUUID, ntfPkt.gimmickID);
 	}
 }
 

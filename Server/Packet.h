@@ -87,7 +87,7 @@ enum class  PACKET_ID : UINT16
 	// Physics
 	PLAYER_ACTION_REQUEST = 251,
 	PLAYER_ACTION_NTF = 252,
-	PLAYER_GIMMICK_INTERACT_REQ = 261,
+	PLAYER_GIMMICK_INTERACT_REQUEST = 261,
 	PLAYER_GIMMICK_INTERACT_NTF = 262,
 	
 	//인벤 / 상점용
@@ -364,23 +364,25 @@ struct PLAYER_ACTION_NTF_PACKET : public PACKET_HEADER
 };
 
 //플레이어가 기믹을 작동 / 건들엿을 떄 발생
-struct PLAYER_GIMMICK_INTERACT_REQ : public PACKET_HEADER
+struct PLAYER_GIMMICK_INTERACT_REQUEST_PACKET : public PACKET_HEADER
 {
+	INT64 activeUUID;	//활성화시킨 유저
 	INT32 gimmickID;	//기믹 ID
 	UINT8 state;		//0 : off / 1 : on 등 상태값
 	Vector3 targetPos;	//이동할 목표 좌표 / 밀려날 방향 등
 	float param;		//추가 기믹 데이터 (속도, 밀어내는 힘 등)
-	PLAYER_GIMMICK_INTERACT_REQ() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_GIMMICK_INTERACT_REQ) {}
+	PLAYER_GIMMICK_INTERACT_REQUEST_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST) {}
 };
 
 //브로드캐스트 용
-struct PLAYER_GIMMICK_INTERACT_NTF : public PACKET_HEADER
+struct PLAYER_GIMMICK_INTERACT_NTF_PACKET : public PACKET_HEADER
 {
+	INT64 activeUUID;	//활성화시킨 유저
 	INT32 gimmickID;	//기믹 ID
 	UINT8 state;		//0 : off / 1 : on 등 상태값
 	Vector3 targetPos;	//이동할 목표 좌표 / 밀려날 방향 등
 	float param;		//추가 기믹 데이터 (속도, 밀어내는 힘 등)
-	PLAYER_GIMMICK_INTERACT_NTF() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_GIMMICK_INTERACT_NTF) {}
+	PLAYER_GIMMICK_INTERACT_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_GIMMICK_INTERACT_NTF) {}
 };
 
 #pragma endregion
