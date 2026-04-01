@@ -615,6 +615,7 @@ private:
 		return task;
 	}
 
+	public:
 	void PushResponse(RedisTask task_)
 	{
 		std::lock_guard<std::mutex> guard(mResLock);

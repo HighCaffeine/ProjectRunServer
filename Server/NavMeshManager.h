@@ -5,6 +5,7 @@
 #include "DetourNavMeshBuilder.h"
 #include "DetourTileCache.h"
 #include "DetourTileCacheBuilder.h"
+
 #include "fastlz.h"
 
 struct Vector3;

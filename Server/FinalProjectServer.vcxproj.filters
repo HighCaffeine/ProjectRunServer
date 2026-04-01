@@ -16,6 +16,9 @@
     <Filter Include="ServerNetwork">
       <UniqueIdentifier>{0f68f2e2-dd3b-4142-824a-697c1140c6e3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Detour">
+      <UniqueIdentifier>{b4bc1a98-6ff6-4778-b5cc-d72857ec6f49}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ServerNetwork\ClientInfo.h">
@@ -84,6 +87,39 @@
     <ClInclude Include="MapDataLoader.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="..\thirdparty\Detour\Include\DetourAlloc.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Detour\Include\DetourAssert.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Detour\Include\DetourCommon.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Detour\Include\DetourMath.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Detour\Include\DetourNavMesh.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Detour\Include\DetourNavMeshBuilder.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Detour\Include\DetourNavMeshQuery.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Detour\Include\DetourNode.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\Detour\Include\DetourStatus.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\recastnavigation\DetourTileCache\Include\DetourTileCache.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\thirdparty\recastnavigation\DetourTileCache\Include\DetourTileCacheBuilder.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Packet.cpp">
@@ -103,6 +139,33 @@
     </ClCompile>
     <ClCompile Include="..\thirdparty\fastlz.c">
       <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="..\thirdparty\Detour\Source\DetourAlloc.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\thirdparty\Detour\Source\DetourAssert.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\thirdparty\Detour\Source\DetourCommon.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\thirdparty\Detour\Source\DetourNavMesh.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\thirdparty\Detour\Source\DetourNavMeshBuilder.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\thirdparty\Detour\Source\DetourNavMeshQuery.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\thirdparty\Detour\Source\DetourNode.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\thirdparty\recastnavigation\DetourTileCache\Source\DetourTileCache.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\thirdparty\recastnavigation\DetourTileCache\Source\DetourTileCacheBuilder.cpp">
+      <Filter>Detour</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

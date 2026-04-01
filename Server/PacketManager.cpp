@@ -1,3 +1,6 @@
+#define _CRT_SECURE_NO_WARNINGS
+
+#include <cstdlib>
 #include <utility>
 #include <cstring>
 #include <sstream>
@@ -76,39 +79,55 @@ bool PacketManager::Run()
 	}*/
 
 	int retryCount = 0;
-	const char* redisIp = std::getenv("REDIS_IP");
+	//const char* redisIp = std::getenv("REDIS_IP");
+
+	
+	/*std::string redisIpStr;
+	char* buf = nullptr;
+	size_t s = 0;
+
+	if (_dupenv_s(&buf, &s, "REDIS_IP") == 0 && buf != nullptr)
+	{
+		redisIpStr = buf;
+		free(buf);
+	}
 
 	Sleep(5000);
-	while (true)
-	{
-		if (mRedisMgr->Run(redisIp ? redisIp : "host.docker.internal", 6379, 2))
-		{
-			printf("[SUCCESS] Redis Connected!\n");
-			break;
-		}
 
-		retryCount++;
-		printf("[RETRY %d] Redis connection failed. Retrying in 1s...\n", retryCount);
+	const char* redisIp = redisIpStr.c_str();*/
 
-		if (retryCount > 15)
-		{
-			printf("[FATAL] Redis connection failed after 10 attempts.\n");
-			return false;
-		}
+	const char* redisIp = std::getenv("REDIS_IP");
 
-		Sleep(1000); // 1초 대기 후 다시 시도
-	}
+	//while (true)
+	//{
+	//	if (mRedisMgr->Run(redisIp ? redisIp : "host.docker.internal", 6379, 2))
+	//	{
+	//		printf("[SUCCESS] Redis Connected!\n");
+	//		break;
+	//	}
+
+	//	retryCount++;
+	//	printf("[RETRY %d] Redis connection failed. Retrying in 1s...\n", retryCount);
+
+	//	if (retryCount > 15)
+	//	{
+	//		printf("[FATAL] Redis connection failed after 10 attempts.\n");
+	//		return false;
+	//	}
+
+	//	Sleep(1000); // 1초 대기 후 다시 시도
+	//}
 
 	if (UDPRun() == false) return false;
 
 	//상점 업데이트용
-	int cmdValue = -1;
+	/*int cmdValue = -1;
 	RedisTask task;
 	task.TaskID = RedisTaskID::REQUEST_SHOP_UPDATE;
 	task.DataSize = sizeof(int);
 	task.pData = new char[sizeof(int)];
 	memcpy(task.pData, &cmdValue, sizeof(int));
-	mRedisMgr->PushTask(task);
+	mRedisMgr->PushTask(task);*/
 
 
 	return true;
@@ -362,29 +381,43 @@ void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* 
 	}
 
 	//여기에서 이미 접속된 유저인지 확인하고, 접속된 유저라면 실패한다.
-	if (mUserManager->FindUserIndexByID(pUserID) == -1) 
-	{ 
-		RedisLoginReq dbReq;
-		CopyUserID(dbReq.UserID, pLoginReqPacket->userID);
-		CopyMemory(dbReq.UserPW, pLoginReqPacket->userPW, (MAX_USER_PW_LEN + 1));
+	//if (mUserManager->FindUserIndexByID(pUserID) == -1) 
+	//{ 
+	//	RedisLoginReq dbReq;
+	//	CopyUserID(dbReq.UserID, pLoginReqPacket->userID);
+	//	CopyMemory(dbReq.UserPW, pLoginReqPacket->userPW, (MAX_USER_PW_LEN + 1));
 
-		RedisTask task;
-		task.UserIndex = clientIndex_;
-		task.TaskID = RedisTaskID::REQUEST_LOGIN;
-		task.DataSize = sizeof(RedisLoginReq);
-		task.pData = new char[task.DataSize];
-		CopyMemory(task.pData, (char*)&dbReq, task.DataSize);
-		mRedisMgr->PushTask(task);
+	//	RedisTask task;
+	//	task.UserIndex = clientIndex_;
+	//	task.TaskID = RedisTaskID::REQUEST_LOGIN;
+	//	task.DataSize = sizeof(RedisLoginReq);
+	//	task.pData = new char[task.DataSize];
+	//	CopyMemory(task.pData, (char*)&dbReq, task.DataSize);
+	//	mRedisMgr->PushTask(task);
 
-		printf("Login To Redis user id = %s\n", pUserID);
-	}
-	else 
-	{
-		//접속중인 유저여서 실패를 반환한다.
-		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
-		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-		return;
-	}
+	//	printf("Login To Redis user id = %s\n", pUserID);
+	//}
+	//else 
+	//{
+	//	//접속중인 유저여서 실패를 반환한다.
+	//	loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
+	//	SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+	//	return;
+	//}
+	
+
+	RedisLoginRes bodyData;
+	memset(&bodyData, 0, sizeof(RedisLoginRes));
+	bodyData.Result = (UINT16)ERROR_CODE::NONE;
+
+	RedisTask resTask;
+	resTask.UserIndex = clientIndex_;
+	resTask.TaskID = RedisTaskID::RESPONSE_LOGIN;
+	resTask.DataSize = sizeof(RedisLoginRes);
+	resTask.pData = new char[resTask.DataSize];
+	CopyMemory(resTask.pData, (char*)&bodyData, resTask.DataSize);
+
+	mRedisMgr->PushResponse(resTask);
 }
 
 void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
@@ -393,12 +426,15 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_
 
 	auto pBody = (RedisLoginRes*)pPacket_;
 
-	if (pBody->Result == (UINT16)ERROR_CODE::NONE)
-	{
-		//로그인 완료로 변경한다
-		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-		pUser->SetLogin(pBody->UserID);
-	}
+	//if (pBody->Result == (UINT16)ERROR_CODE::NONE)
+	//{
+	//	//로그인 완료로 변경한다
+	//	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	//	pUser->SetLogin(pBody->UserID);
+	//}
+
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	pUser->SetLogin(pBody->UserID);
 
 	LOGIN_RESPONSE_PACKET loginResPacket;
 	//loginResPacket.Result = pBody->Result;
@@ -560,7 +596,7 @@ void PacketManager::ProcessPlayerMovement(UINT32 clientIndex_, UINT16 packetSize
 		// 서버의 Actor 객체에 목적지 좌표만 설정함
 		// 실제 이동은 LogicThread -> Room::Update -> Actor::UpdateServerPhysics에서 처리
 		//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
-		pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axis, pMovePkt->inputSeq);
+		pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axisH, pMovePkt->axisV, pMovePkt->inputSeq);
 	}
 }
 
@@ -1227,7 +1263,7 @@ void PacketManager::UDPRecvThread()
 					//pUser->SetTarget(pMovePkt->targetPos, pMovePkt->inputSeq);	미니맵 이동
 					//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
 
-					pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axis, pMovePkt->inputSeq);
+					pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axisH, pMovePkt->axisV, pMovePkt->inputSeq);
 				}
 				else
 				{

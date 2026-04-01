@@ -1,0 +1,6 @@
+[19:07:58] [info] [Bandwidth] Speed - In: 0.07 KB/s | Out: 0.01 KB/s  ||  Total - In: 0.00 MB | Out: 0.00 MB
+[19:08:10] [info] [Bandwidth] Speed - In: 0.14 KB/s | Out: 0.01 KB/s  ||  Total - In: 0.00 MB | Out: 0.00 MB
+[19:08:12] [info] [Bandwidth] Speed - In: 0.55 KB/s | Out: 0.05 KB/s  ||  Total - In: 0.00 MB | Out: 0.00 MB
+[19:08:13] [info] [Bandwidth] Speed - In: 0.49 KB/s | Out: 0.05 KB/s  ||  Total - In: 0.00 MB | Out: 0.00 MB
+[19:08:14] [info] [Bandwidth] Speed - In: 0.42 KB/s | Out: 0.04 KB/s  ||  Total - In: 0.00 MB | Out: 0.00 MB
+[19:32:40] [info] [Bandwidth] Speed - In: 0.07 KB/s | Out: 0.01 KB/s  ||  Total - In: 0.00 MB | Out: 0.00 MB

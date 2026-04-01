@@ -84,8 +84,6 @@ public:
 
 		
 	std::function<void(UINT32, UINT16, char*)> SendPacketFunc;
-		
-
 private:
 	std::vector<Room*> mRoomList;
 	INT32 mBeginRoomNumber = 0;

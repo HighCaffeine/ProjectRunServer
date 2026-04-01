@@ -45,8 +45,8 @@ public:
 		inputZ = 0.0f;
 		isMoving = false;
 
-		mForceDuration = 0.0f;
-		mForceVelocity = { 0.0f, 0.0f, 0.0f };
+		//mForceDuration = 0.0f;
+		//mForceVelocity = { 0.0f, 0.0f, 0.0f };
 		mSpeedModifiers.clear();
 	}
 
@@ -144,7 +144,7 @@ public:
 	//	lastInputSeq = seq;
 	//}
 
-	void SetTarget(Vector3& pos, Quaternion& rot, Vector2& axis, UINT32 seq)
+	void SetTarget(Vector3& pos, Quaternion& rot, float& axisH, float& axisV, UINT32 seq)
 	{
 		serverPos = pos;
 		position = pos;
