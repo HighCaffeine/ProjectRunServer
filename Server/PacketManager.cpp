@@ -30,11 +30,11 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_LEAVE_REQUEST] = &PacketManager::ProcessLeaveRoom;
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_MOVEMENT] = &PacketManager::ProcessPlayerMovement;
+	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_STATUS_NTF] = &PacketManager::ProcessPlayerStateChange;
 	
 	//플레이어 물리 / 기믹 처리
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_ACTION_REQUEST] = &PacketManager::ProcessPlayerAction;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST] = &PacketManager::ProcessGimmickInteract;
-	
 
 	//레디스 응답 패킷
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_LOAD_INVENTORY] = &PacketManager::ProcessInventoryDBResult;
@@ -598,6 +598,24 @@ void PacketManager::ProcessPlayerMovement(UINT32 clientIndex_, UINT16 packetSize
 		// 실제 이동은 LogicThread -> Room::Update -> Actor::UpdateServerPhysics에서 처리
 		//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
 		pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axisH, pMovePkt->axisV, pMovePkt->inputSeq);
+	}
+}
+
+void PacketManager::ProcessPlayerStateChange(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pReq = (PLAYER_STATUS_NTF_PACKET*)pPacket_;
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		pReq->userUUID = clientIndex_;
+
+		//브로드캐스트
+		pRoom->SendToAllUser(pReq->PacketLength, pPacket_, clientIndex_, true);
+
+		printf("[State Sync] User %d changed state to %d\n", clientIndex_, pReq->newState);
 	}
 }
 

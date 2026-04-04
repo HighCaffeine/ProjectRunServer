@@ -43,6 +43,23 @@ public:
 		mUserList.push_back(user_);
 		++mCurrentUserCount;
 
+		//빈 자리중 가장 앞자리에 배치
+		for (int i = 0; i < mMaxUserCount; ++i)
+		{
+			if (mSlots[i] == nullptr)
+			{
+				mSlots[i] = user_;
+				// user_->SetRoomSlotIndex(i); 유저 객체에 번호 저장 가능
+				break;
+			}
+		}
+
+		// 방에 처음 들어온 사람이면 방장으로 임명
+		if (mCurrentUserCount == 1)
+		{
+			mHostUUID = user_->GetNetConnIdx();
+		}
+
 		user_->EnterRoom(mRoomNum);
 
 		Vector3 snappedPos;
@@ -88,6 +105,8 @@ public:
 			SendPacketFunc(user_->GetNetConnIdx(), roomUserInfoNtf.PacketLength, (char*)&roomUserInfoNtf);
 		}
 
+		BroadcastHostInfo();
+
 		return (UINT16)ERROR_CODE::NONE;
 	}
 
@@ -120,13 +139,67 @@ public:
 			return leaveUserId == pUser->GetUserId();
 			});
 
+		for (int i = 0; i < mMaxUserCount; ++i)
+		{
+			if (mSlots[i] == leaveUser_)
+			{
+				mSlots[i] = nullptr;
+				break;
+			}
+		}
+		mUserList.remove(leaveUser_);
+
 		--mCurrentUserCount;
+
+		for (int i = 0; i < mMaxUserCount; ++i) 
+		{
+			if (mSlots[i] == leaveUser_) 
+			{
+				mIsReady[i] = false;
+				break;
+			}
+		}
+		CheckAllReady();
 
 		ROOM_LEAVE_USER_NTF_PACKET notifyPkt;
 		notifyPkt.userUUID = leaveUser_->GetNetConnIdx();
 		CopyUserID(notifyPkt.userID, *leaveUser_);
 		bool EXCEPT_ME = true;
 		SendToAllUser(notifyPkt.PacketLength, (char*)&notifyPkt, notifyPkt.userUUID, EXCEPT_ME);
+
+		//나간 사람이 방장이면 가장 앞번호에게 방장 넘김
+		if (leaveUser_->GetNetConnIdx() == mHostUUID)
+		{
+			mHostUUID = -1; // 초기화
+			for (int i = 0; i < mMaxUserCount; ++i)
+			{
+				if (mSlots[i] != nullptr)
+				{
+					mHostUUID = mSlots[i]->GetNetConnIdx();
+					break;
+				}
+			}
+
+			// 남은 유저가 있다면 새로운 방장 알림
+			if (mHostUUID != -1)
+			{
+				BroadcastHostInfo();
+			}
+		}
+	}
+
+	void BroadcastHostInfo()
+	{
+		ROOM_HOST_NTF_PACKET hostPkt;
+		hostPkt.hostUUID = mHostUUID;
+
+		for (auto pTarget : mUserList)
+		{
+			if (pTarget != nullptr)
+			{
+				SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), hostPkt.PacketLength, (char*)&hostPkt);
+			}
+		}
 	}
 
 	void NotifyChat(INT32 clientIndex_, const char* userID_, const char* msg_)
@@ -329,6 +402,91 @@ public:
 				}
 			}
 		}
+
+		if (mCountdownTimer > 0) 
+		{
+			mCountdownTimer -= dt;
+			int currentSec = (int)ceil(mCountdownTimer);
+
+			if (currentSec < mLastAnnouncedSecond) 
+			{
+				mLastAnnouncedSecond = currentSec;
+
+				GAME_START_COUNTDOWN_NTF_PACKET ntf;
+				ntf.remainSeconds = currentSec;
+				BroadcastPacket(ntf.PacketLength, (char*)&ntf);
+			}
+
+			if (mCountdownTimer <= 0)
+			{
+				mCountdownTimer = -1.0f;
+				// 던전 진입 명령 (첫 번째 던전 MapId = 1)
+				GAME_START_NTF_PACKET startNtf;
+				startNtf.mapId = 1;
+				BroadcastPacket(startNtf.PacketLength, (char*)&startNtf);
+				printf("[Room %d] Dungeon Start!\n", mRoomNum);
+			}
+		}
+	}
+
+	void ProcessPlayerReady(User* user, bool isReady) 
+	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+
+		// 해당 유저의 슬롯 인덱스 찾기
+		int slotIdx = -1;
+		for (int i = 0; i < mMaxUserCount; ++i) 
+		{
+			if (mSlots[i] == user) 
+			{
+				slotIdx = i;
+				break;
+			}
+		}
+		if (slotIdx == -1) return;
+
+		mIsReady[slotIdx] = isReady;
+
+		// 준비 상태 브로드캐스트
+		ROOM_READY_STATUS_NTF_PACKET ntf;
+		ntf.userUUID = user->GetNetConnIdx();
+		ntf.isReady = isReady;
+		BroadcastPacket(ntf.PacketLength, (char*)&ntf);
+
+		// 전원 준비 체크
+		CheckAllReady();
+	}
+
+	void CheckAllReady() 
+	{
+		if (mCurrentUserCount == 0) return;
+
+		bool allReady = true;
+		for (int i = 0; i < mMaxUserCount; ++i) 
+		{
+			// 접속 중인 슬롯인데 준비가 안 됐다면 false
+			if (mSlots[i] != nullptr && !mIsReady[i]) 
+			{
+				allReady = false;
+				break;
+			}
+		}
+
+		if (allReady && mCountdownTimer < 0) 
+		{
+			// 카운트다운 시작!
+			mCountdownTimer = 5.0f;
+			mLastAnnouncedSecond = 6; // 처음 5초 알림을 위해 설정
+			printf("[Room %d] All players ready! Starting countdown.\n", mRoomNum);
+		}
+		else if (!allReady && mCountdownTimer > 0) 
+		{
+			// 누군가 준비 영역을 나감 -> 카운트다운 취소
+			mCountdownTimer = -1.0f;
+			PACKET_HEADER cancelPkt(sizeof(PACKET_HEADER), PACKET_ID::GAME_READY_CANCEL_NTF);
+			BroadcastPacket(cancelPkt.PacketLength, (char*)&cancelPkt);
+			printf("[Room %d] Countdown canceled.\n", mRoomNum);
+		}
 	}
 
 private:
@@ -362,6 +520,13 @@ private:
 	INT32 mMaxUserCount = 0;
 
 	UINT16 mCurrentUserCount = 0;
+
+	User* mSlots[6] = { nullptr, };
+	INT64 mHostUUID = -1;
+
+	bool mIsReady[6] = { false, }; // 슬롯별 준비 상태
+	float mCountdownTimer = -1.0f; // -1이면 카운트다운 중 아님
+	int mLastAnnouncedSecond = 0;
 };
 
 

@@ -68,6 +68,7 @@ enum class  PACKET_ID : UINT16
 	ROOM_LEAVE_REQUEST = 215,
 	ROOM_LEAVE_RESPONSE = 216,
 	ROOM_LEAVE_USER_NTF = 217,
+	ROOM_HOST_NTF = 218,
 
 	// Chat
 	ROOM_CHAT_REQUEST = 221, // SEND_CHAT_MESSAGE
@@ -89,6 +90,12 @@ enum class  PACKET_ID : UINT16
 	PLAYER_ACTION_NTF = 252,
 	PLAYER_GIMMICK_INTERACT_REQUEST = 261,
 	PLAYER_GIMMICK_INTERACT_NTF = 262,
+
+	PLAYER_READY_REQUEST = 271,			// 클라 -> 서버: 준비 영역 입/퇴장
+	ROOM_READY_STATUS_NTF = 272,		// 서버 -> 클라: 누가 준비됐는지 브로드캐스트
+	GAME_START_COUNTDOWN_NTF = 273,		// 서버 -> 클라: 카운트다운 시작
+	GAME_READY_CANCEL_NTF = 274,		// 서버 -> 클라: 누군가 나가서 카운트 취소
+	GAME_START_NTF = 275,				// 서버 -> 클라: 실제 던전 시작 (씬 전환)
 	
 	//인벤 / 상점용
 	INVENTORY_INFO = 301,       // 접속갱신 시 인벤토리 정보 전송
@@ -184,6 +191,12 @@ struct ROOM_USER_INFO_NTF_PACKET : public PACKET_HEADER
 	Quaternion rotation;
 
 	ROOM_USER_INFO_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::ROOM_USER_INFO_NTF) {}
+};
+
+struct ROOM_HOST_NTF_PACKET : public PACKET_HEADER
+{
+	INT64 hostUUID;
+	ROOM_HOST_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::ROOM_HOST_NTF) {}
 };
 #pragma endregion
 
@@ -340,8 +353,9 @@ struct UPDATE_PLAYER_MOVEMENT_PACKET : public PACKET_HEADER
 struct PLAYER_STATUS_NTF_PACKET : public PACKET_HEADER 
 {
 	INT64 userUUID;
-	float moveSpeed;     // 현재 이동 속도 수치
-	UINT32 statusFlags;  // 비트마스크 (0: 정상, 1: 슬로우, 2: 스턴 등)
+	UINT8 newState;     // 0:Idle, 1:Move, 2:Push, 3:Pull, 4:Dash, 5:Knockback 등
+	Vector3 targetDir;  // 넉백 방향, 대쉬 방향 등
+	float powerOrTime;  // 넉백 파워, 대쉬 시간 등
 	PLAYER_STATUS_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_STATUS_NTF) {}
 };
 #pragma endregion
@@ -383,6 +397,34 @@ struct PLAYER_GIMMICK_INTERACT_NTF_PACKET : public PACKET_HEADER
 	Vector3 targetPos;	//이동할 목표 좌표 / 밀려날 방향 등
 	float param;		//추가 기믹 데이터 (속도, 밀어내는 힘 등)
 	PLAYER_GIMMICK_INTERACT_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_GIMMICK_INTERACT_NTF) {}
+};
+
+#pragma endregion
+
+#pragma region Ready
+struct PLAYER_READY_REQUEST_PACKET : public PACKET_HEADER 
+{
+	bool isReady;
+	PLAYER_READY_REQUEST_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_READY_REQUEST) {}
+};
+
+struct ROOM_READY_STATUS_NTF_PACKET : public PACKET_HEADER 
+{
+	INT64 userUUID;
+	bool isReady;
+	ROOM_READY_STATUS_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::ROOM_READY_STATUS_NTF) {}
+};
+
+struct GAME_START_COUNTDOWN_NTF_PACKET : public PACKET_HEADER 
+{
+	int remainSeconds;
+	GAME_START_COUNTDOWN_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::GAME_START_COUNTDOWN_NTF) {}
+};
+
+struct GAME_START_NTF_PACKET : public PACKET_HEADER 
+{
+	int mapId; // 진입할 던전 맵 ID
+	GAME_START_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::GAME_START_NTF) {}
 };
 
 #pragma endregion
