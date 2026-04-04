@@ -489,6 +489,26 @@ public:
 		}
 	}
 
+	void ProcessEscapeRequest(User* user) 
+	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+
+		// 해당 유저를 탈출 완료 상태로 마킹 (mIsReady 배열 등을 재활용)
+		MarkUserEscaped(user->GetNetConnIdx());
+
+		// 전원 탈출 지점에 모였다면?
+		if (CheckAllEscaped()) 
+		{
+			GiveClearRewardsToAll();
+
+			// 던전 클리어 패킷 발송
+			PACKET_HEADER clearPkt(sizeof(PACKET_HEADER), PACKET_ID::DUNGEON_CLEAR_NTF);
+			BroadcastPacket(clearPkt.PacketLength, (char*)&clearPkt);
+
+			printf("[Room %d] 던전 클리어 마을로 복귀\n", mRoomNum);
+		}
+	}
+
 private:
 	bool CanSee(User* viewer, Actor* target)
 	{
