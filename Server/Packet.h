@@ -97,6 +97,9 @@ enum class  PACKET_ID : UINT16
 	GAME_READY_CANCEL_NTF = 274,		// 서버 -> 클라: 누군가 나가서 카운트 취소
 	GAME_START_NTF = 275,				// 서버 -> 클라: 실제 던전 시작 (씬 전환)
 	
+	DUNGEON_ESCAPE_REQ = 281,
+	DUNGEON_CLEAR_NTF = 282,
+
 	//인벤 / 상점용
 	INVENTORY_INFO = 301,       // 접속갱신 시 인벤토리 정보 전송
 	SHOP_INFO = 302,            // 상점 정보 - 현재 판매 아이템, 다음 갱신 시간
@@ -401,7 +404,7 @@ struct PLAYER_GIMMICK_INTERACT_NTF_PACKET : public PACKET_HEADER
 
 #pragma endregion
 
-#pragma region Ready
+#pragma region Ready, Game Status
 struct PLAYER_READY_REQUEST_PACKET : public PACKET_HEADER 
 {
 	bool isReady;
@@ -425,6 +428,16 @@ struct GAME_START_NTF_PACKET : public PACKET_HEADER
 {
 	int mapId; // 진입할 던전 맵 ID
 	GAME_START_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::GAME_START_NTF) {}
+};
+
+struct DUNGEON_ESCAPE_REQ_PACKET : public PACKET_HEADER
+{
+	DUNGEON_ESCAPE_REQ_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::DUNGEON_ESCAPE_REQ) {}
+};
+
+struct DUNGEON_CLEAR_NTF_PACKET : public PACKET_HEADER
+{
+	DUNGEON_CLEAR_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::DUNGEON_CLEAR_NTF) {}
 };
 
 #pragma endregion

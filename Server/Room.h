@@ -489,23 +489,51 @@ public:
 		}
 	}
 
-	void ProcessEscapeRequest(User* user) 
+	void ProcessEscapeRequest(User* user)
 	{
 		std::lock_guard<std::recursive_mutex> guard(mLock);
 
-		// 해당 유저를 탈출 완료 상태로 마킹 (mIsReady 배열 등을 재활용)
-		MarkUserEscaped(user->GetNetConnIdx());
-
-		// 전원 탈출 지점에 모였다면?
-		if (CheckAllEscaped()) 
+		// 1. 패킷을 보낸 유저가 몇 번 슬롯인지 찾기
+		int slotIdx = -1;
+		for (int i = 0; i < mMaxUserCount; ++i)
 		{
-			GiveClearRewardsToAll();
+			if (mSlots[i] == user)
+			{
+				slotIdx = i;
+				break;
+			}
+		}
+		if (slotIdx == -1) return;
 
-			// 던전 클리어 패킷 발송
-			PACKET_HEADER clearPkt(sizeof(PACKET_HEADER), PACKET_ID::DUNGEON_CLEAR_NTF);
+		// 2. 해당 유저 탈출 완료 마킹
+		mIsEscaped[slotIdx] = true;
+		printf("[Room %d] User %s arrived at escape zone.\n", mRoomNum, user->GetUserId().c_str());
+
+		// 3. 방에 있는 전원이 탈출했는지 체크 (CheckAllEscaped 로직)
+		bool allEscaped = true;
+		for (int i = 0; i < mMaxUserCount; ++i)
+		{
+			// 접속 중인 슬롯(nullptr 아님)인데 아직 안 들어왔다면 false
+			if (mSlots[i] != nullptr && !mIsEscaped[i])
+			{
+				allEscaped = false;
+				break;
+			}
+		}
+
+		// 4. 모두 모였다면 클리어 처리!
+		if (allEscaped && mCurrentUserCount > 0)
+		{
+			// [추후 작업] Redis 보상 지급 (GiveClearRewardsToAll 로직)
+			// mRedisMgr->PushTask(...) 형태로 상점이나 거래처럼 DB 업데이트 요청
+			printf("[Room %d] All users escaped! Dungeon Cleared.\n", mRoomNum);
+
+			// 던전 클리어 패킷 브로드캐스트
+			DUNGEON_CLEAR_NTF_PACKET clearPkt;
 			BroadcastPacket(clearPkt.PacketLength, (char*)&clearPkt);
 
-			printf("[Room %d] 던전 클리어 마을로 복귀\n", mRoomNum);
+			// 상태 초기화 (다음 게임을 위해)
+			memset(mIsEscaped, 0, sizeof(mIsEscaped));
 		}
 	}
 
@@ -537,16 +565,18 @@ private:
 	std::list<Npc*> mNpcList;
 
 
-	INT32 mMaxUserCount = 0;
+	INT32 mMaxUserCount = 2;
 
 	UINT16 mCurrentUserCount = 0;
 
-	User* mSlots[6] = { nullptr, };
+	User* mSlots[2] = { nullptr, };
 	INT64 mHostUUID = -1;
 
-	bool mIsReady[6] = { false, }; // 슬롯별 준비 상태
+	bool mIsReady[2] = { false, }; // 슬롯별 준비 상태
 	float mCountdownTimer = -1.0f; // -1이면 카운트다운 중 아님
 	int mLastAnnouncedSecond = 0;
+
+	bool mIsEscaped[2] = { false, };
 };
 
 
