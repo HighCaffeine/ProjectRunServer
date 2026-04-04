@@ -31,6 +31,7 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_MOVEMENT] = &PacketManager::ProcessPlayerMovement;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_STATUS_NTF] = &PacketManager::ProcessPlayerStateChange;
+	mRecvFuntionDictionary[(int)PACKET_ID::DUNGEON_ESCAPE_REQ] = &PacketManager::ProcessDungeonEscape;
 	
 	//플레이어 물리 / 기믹 처리
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_ACTION_REQUEST] = &PacketManager::ProcessPlayerAction;
@@ -616,6 +617,18 @@ void PacketManager::ProcessPlayerStateChange(UINT32 clientIndex_, UINT16 packetS
 		pRoom->SendToAllUser(pReq->PacketLength, pPacket_, clientIndex_, true);
 
 		printf("[State Sync] User %d changed state to %d\n", clientIndex_, pReq->newState);
+	}
+}
+
+void PacketManager::ProcessDungeonEscape(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		pRoom->ProcessEscapeRequest(pUser);
 	}
 }
 

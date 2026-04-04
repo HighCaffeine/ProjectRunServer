@@ -82,6 +82,8 @@ private:
 	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessPlayerMovement(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessPlayerStateChange(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessDungeonEscape(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	
 	//물리 처리
 	void ProcessPlayerAction(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
