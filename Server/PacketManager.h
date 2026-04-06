@@ -85,6 +85,10 @@ private:
 
 	void ProcessDungeonEscape(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	
+	void ProcessSceneSync(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
 	//물리 처리
 	void ProcessPlayerAction(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);

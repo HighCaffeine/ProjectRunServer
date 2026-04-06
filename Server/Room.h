@@ -29,7 +29,9 @@ public:
 	{
 		mRoomNum = roomNum_;
 		mMaxUserCount = maxUserCount_;
-		//NavMeshManager::GetInstance()->Init(navMeshFileName);
+		mSlots.assign(maxUserCount_, nullptr);
+		mIsReady.assign(maxUserCount_, false);
+		mIsEscaped.assign(maxUserCount_, false);
 	}
 
 	UINT16 EnterUser(User* user_)
@@ -170,6 +172,12 @@ public:
 		//나간 사람이 방장이면 가장 앞번호에게 방장 넘김
 		if (leaveUser_->GetNetConnIdx() == mHostUUID)
 		{
+			if (mCurrentUserCount <= 0) 
+			{
+				mHostUUID = -1;
+				return; 
+			}
+
 			mHostUUID = -1; // 초기화
 			for (int i = 0; i < mMaxUserCount; ++i)
 			{
@@ -356,52 +364,117 @@ public:
 			}
 		}
 
-		// 이동 동기화 패킷 전송
-		for (auto pUser : mUserList)
+		// 이동 동기화 패킷 전송 (기존 루프 대체)
+		for (auto pMover : mUserList)
 		{
-			if (pUser == nullptr || !pUser->GetIsMoving()) continue;
+			if (pMover == nullptr) continue;
 
-			UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
-			syncPkt.lastInputSeq = pUser->GetLastInputSeq();
-			syncPkt.userUUID = pUser->GetNetConnIdx();
-			syncPkt.currentPos = pUser->GetPosition();
-			syncPkt.currentRot = pUser->GetRotation();
-			syncPkt.axis = pUser->GetAxis();
-			
-			//syncPkt.isMoving = pUser->GetIsMoving();
-			//syncPkt.currentSpeed = pUser->GetCurrentSpeed();
-			//SendToAllUser(syncPkt.PacketLength, (char*)&syncPkt, pUser->GetNetConnIdx(), false);
-			for (auto pTarget : mUserList) 
+			// 1. [핵심] 마지막으로 패킷을 보낸 위치와 현재 위치의 거리를 직접 계산
+			// Vector3_Distance2D가 있다면 사용하시고, 없으면 아래처럼 계산하세요.
+			Vector3 curPos = pMover->GetPosition();
+			Vector3 lastPos = pMover->mLastSentPos; // User 클래스에 이 멤버 변수가 있어야 합니다.
+
+			float dx = curPos.x - lastPos.x;
+			float dz = curPos.z - lastPos.z;
+			float moveDistSq = (dx * dx) + (dz * dz); // 루트 안 씌운 제곱값으로 비교 (연산 절약)
+
+			// 2. 전송 조건: 0.01m(제곱값 0.0001f) 이상 움직였거나, 강제 전송 플래그(Dirty)가 켜졌을 때만
+			if (moveDistSq > 0.0001f || pMover->mIsDirty)
 			{
-				if (pTarget) 
+				UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
+				syncPkt.lastInputSeq = pMover->GetLastInputSeq();
+				syncPkt.userUUID = pMover->GetNetConnIdx();
+				syncPkt.currentPos = curPos;
+				syncPkt.currentRot = pMover->GetRotation();
+				syncPkt.axis = pMover->GetAxis();
+
+				// 나를 보고 있는 사람(AOI)에게만 전송
+				for (auto targetIdx : pMover->mVisibleList)
 				{
-					SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
+					SendPacketFunc((UINT32)targetIdx, syncPkt.PacketLength, (char*)&syncPkt);
 				}
+
+				// 나 자신에게도 확정 좌표 전송 (보정용)
+				SendPacketFunc((UINT32)pMover->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
+
+				// 3. [중요] 전송 완료 후 현재 좌표를 '마지막 전송 좌표'로 저장
+				pMover->mLastSentPos = curPos;
+				pMover->mIsDirty = false;
 			}
 		}
 
 		for (auto pNpc : mNpcList)
 		{
-			if (pNpc == nullptr || !pNpc->GetIsMoving()) continue;
+			if (pNpc == nullptr) continue;
 
-			UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
-			syncPkt.lastInputSeq = pNpc->GetLastInputSeq();
-			syncPkt.userUUID = pNpc->GetNetConnIdx();
-			syncPkt.currentPos = pNpc->GetPosition();
-			syncPkt.currentRot = pNpc->GetRotation();
-			syncPkt.axis = pNpc->GetAxis();
+			Vector3 curPos = pNpc->GetPosition();
+			Vector3 lastPos = pNpc->mLastSentPos;
+			float moveDistSq = (curPos.x - lastPos.x) * (curPos.x - lastPos.x) + (curPos.z - lastPos.z) * (curPos.z - lastPos.z);
 
-			//syncPkt.isMoving = pNpc->GetIsMoving();
-			//syncPkt.currentSpeed = pNpc->GetCurrentSpeed();
-			//SendToAllUser(syncPkt.PacketLength, (char*)&syncPkt, pNpc->GetNetConnIdx(), false);
-			for (auto pTarget : mUserList)
+			if (moveDistSq > 0.0001f || pNpc->mIsDirty)
 			{
-				if (pTarget)
-				{
-					SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
+				UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
+				syncPkt.lastInputSeq = pNpc->GetLastInputSeq();
+				syncPkt.userUUID = pNpc->GetNetConnIdx();
+				syncPkt.currentPos = curPos;
+				syncPkt.currentRot = pNpc->GetRotation();
+				syncPkt.axis = pNpc->GetAxis();
+
+				for (auto pTarget : mUserList) {
+					if (pTarget) SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
 				}
+
+				pNpc->mLastSentPos = curPos;
+				pNpc->mIsDirty = false;
 			}
 		}
+
+		// 이동 동기화 패킷 전송
+		//for (auto pUser : mUserList)
+		//{
+		//	if (pUser == nullptr || !pUser->GetIsMoving()) continue;
+
+		//	UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
+		//	syncPkt.lastInputSeq = pUser->GetLastInputSeq();
+		//	syncPkt.userUUID = pUser->GetNetConnIdx();
+		//	syncPkt.currentPos = pUser->GetPosition();
+		//	syncPkt.currentRot = pUser->GetRotation();
+		//	syncPkt.axis = pUser->GetAxis();
+		//	
+		//	//syncPkt.isMoving = pUser->GetIsMoving();
+		//	//syncPkt.currentSpeed = pUser->GetCurrentSpeed();
+		//	//SendToAllUser(syncPkt.PacketLength, (char*)&syncPkt, pUser->GetNetConnIdx(), false);
+		//	for (auto pTarget : mUserList) 
+		//	{
+		//		if (pTarget) 
+		//		{
+		//			SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
+		//		}
+		//	}
+		//}
+
+		//for (auto pNpc : mNpcList)
+		//{
+		//	if (pNpc == nullptr || !pNpc->GetIsMoving()) continue;
+
+		//	UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
+		//	syncPkt.lastInputSeq = pNpc->GetLastInputSeq();
+		//	syncPkt.userUUID = pNpc->GetNetConnIdx();
+		//	syncPkt.currentPos = pNpc->GetPosition();
+		//	syncPkt.currentRot = pNpc->GetRotation();
+		//	syncPkt.axis = pNpc->GetAxis();
+
+		//	//syncPkt.isMoving = pNpc->GetIsMoving();
+		//	//syncPkt.currentSpeed = pNpc->GetCurrentSpeed();
+		//	//SendToAllUser(syncPkt.PacketLength, (char*)&syncPkt, pNpc->GetNetConnIdx(), false);
+		//	for (auto pTarget : mUserList)
+		//	{
+		//		if (pTarget)
+		//		{
+		//			SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
+		//		}
+		//	}
+		//}
 
 		if (mCountdownTimer > 0) 
 		{
@@ -533,7 +606,29 @@ public:
 			BroadcastPacket(clearPkt.PacketLength, (char*)&clearPkt);
 
 			// 상태 초기화 (다음 게임을 위해)
-			memset(mIsEscaped, 0, sizeof(mIsEscaped));
+			std::fill(mIsReady.begin(), mIsReady.end(), false);
+			std::fill(mIsEscaped.begin(), mIsEscaped.end(), false);
+			mCountdownTimer = -1.0f;
+		}
+	}
+
+	void SyncRoomUsers(User* reqUser)
+	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+
+		for (auto pRoomUser : mUserList)
+		{
+			// 빈 슬롯이거나 자기 자신이면 패스
+			if (pRoomUser == nullptr || pRoomUser == reqUser) continue;
+
+			// 다른 유저의 정보를 요청자(reqUser)에게 전송
+			ROOM_USER_INFO_NTF_PACKET infoPkt;
+			infoPkt.userUUID = pRoomUser->GetNetConnIdx();
+			CopyUserID(infoPkt.userID, *pRoomUser);
+			infoPkt.position = pRoomUser->GetPosition();
+			infoPkt.rotation = pRoomUser->GetRotation();
+
+			SendPacketFunc(reqUser->GetNetConnIdx(), infoPkt.PacketLength, (char*)&infoPkt);
 		}
 	}
 
@@ -569,14 +664,13 @@ private:
 
 	UINT16 mCurrentUserCount = 0;
 
-	User* mSlots[2] = { nullptr, };
+	std::vector<User*> mSlots;
+	std::vector<bool> mIsReady;
+	std::vector<bool> mIsEscaped;
 	INT64 mHostUUID = -1;
 
-	bool mIsReady[2] = { false, }; // 슬롯별 준비 상태
 	float mCountdownTimer = -1.0f; // -1이면 카운트다운 중 아님
 	int mLastAnnouncedSecond = 0;
-
-	bool mIsEscaped[2] = { false, };
 };
 
 
@@ -587,7 +681,7 @@ void CopyUserID(char* userID, const Actor& user)
 
 void CopyUserID(char* userID, const std::string& userID_)
 {
-	CopyMemory(userID, userID_.c_str(), sizeof(userID));
+	CopyMemory(userID, userID_.c_str(), userID_.size() + 1);
 }
 
 void CopyUserID(char* userID, const char* userID_)

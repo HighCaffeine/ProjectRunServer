@@ -32,7 +32,10 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_MOVEMENT] = &PacketManager::ProcessPlayerMovement;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_STATUS_NTF] = &PacketManager::ProcessPlayerStateChange;
 	mRecvFuntionDictionary[(int)PACKET_ID::DUNGEON_ESCAPE_REQ] = &PacketManager::ProcessDungeonEscape;
-	
+	mRecvFuntionDictionary[(int)PACKET_ID::SCENE_SYNC_REQ] = &PacketManager::ProcessSceneSync;
+
+	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_READY_REQUEST] = &PacketManager::ProcessPlayerReady;
+
 	//플레이어 물리 / 기믹 처리
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_ACTION_REQUEST] = &PacketManager::ProcessPlayerAction;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST] = &PacketManager::ProcessGimmickInteract;
@@ -65,8 +68,8 @@ void PacketManager::CreateCompent(const UINT32 maxClient_)
 	LogManager::Init();
 		
 	UINT32 startRoomNummber = 0;
-	UINT32 maxRoomCount = 10;
-	UINT32 maxRoomUserCount = 4;
+	UINT32 maxRoomCount = 2;
+	UINT32 maxRoomUserCount = 2;
 	mRoomManager = new RoomManager;
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNummber, maxRoomCount, maxRoomUserCount);
@@ -193,6 +196,7 @@ void PacketManager::End()
 void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 {
 	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (pReqUser == nullptr) return;
 
 	if (pReqUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
 	{
@@ -200,10 +204,7 @@ void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 		mRoomManager->LeaveUser(roomNum, pReqUser);
 	}
 
-	if (pReqUser->GetDomainState() != User::DOMAIN_STATE::NONE)
-	{
-		mUserManager->DeleteUserInfo(pReqUser);
-	}
+	mUserManager->DeleteUserInfo(pReqUser);
 }
 
 void PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 size_, char* pData_)
@@ -360,66 +361,102 @@ void PacketManager::ProcessUserDisConnect(UINT32 clientIndex_, UINT16 packetSize
 	ClearConnectionInfo(clientIndex_);
 }
 
+//redis 로그인
+//void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+//{ 
+//	if (LOGIN_REQUEST_PACKET_SIZE != packetSize_)
+//	{
+//		return;
+//	}
+//
+//	auto pLoginReqPacket = reinterpret_cast<LOGIN_REQUEST_PACKET*>(pPacket_);
+//
+//	auto pUserID = pLoginReqPacket->userID;
+//	printf("requested user id = %s\n", pUserID);
+//
+//	LOGIN_RESPONSE_PACKET loginResPacket;
+//
+//	if (mUserManager->GetCurrentUserCnt() >= mUserManager->GetMaxUserCnt()) 
+//	{ 
+//		//접속자수가 최대수를 차지해서 접속불가
+//		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_USED_ALL_OBJ;
+//		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET) , (char*)&loginResPacket);
+//		return;
+//	}
+//
+//	//여기에서 이미 접속된 유저인지 확인하고, 접속된 유저라면 실패한다.
+//	//if (mUserManager->FindUserIndexByID(pUserID) == -1) 
+//	//{ 
+//	//	RedisLoginReq dbReq;
+//	//	CopyUserID(dbReq.UserID, pLoginReqPacket->userID);
+//	//	CopyMemory(dbReq.UserPW, pLoginReqPacket->userPW, (MAX_USER_PW_LEN + 1));
+//
+//	//	RedisTask task;
+//	//	task.UserIndex = clientIndex_;
+//	//	task.TaskID = RedisTaskID::REQUEST_LOGIN;
+//	//	task.DataSize = sizeof(RedisLoginReq);
+//	//	task.pData = new char[task.DataSize];
+//	//	CopyMemory(task.pData, (char*)&dbReq, task.DataSize);
+//	//	mRedisMgr->PushTask(task);
+//
+//	//	printf("Login To Redis user id = %s\n", pUserID);
+//	//}
+//	//else 
+//	//{
+//	//	//접속중인 유저여서 실패를 반환한다.
+//	//	loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
+//	//	SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+//	//	return;
+//	//}
+//	
+//
+//	RedisLoginRes bodyData;
+//	memset(&bodyData, 0, sizeof(RedisLoginRes));
+//	bodyData.Result = (UINT16)ERROR_CODE::NONE;
+//
+//	RedisTask resTask;
+//	resTask.UserIndex = clientIndex_;
+//	resTask.TaskID = RedisTaskID::RESPONSE_LOGIN;
+//	resTask.DataSize = sizeof(RedisLoginRes);
+//	resTask.pData = new char[resTask.DataSize];
+//	CopyMemory(resTask.pData, (char*)&bodyData, resTask.DataSize);
+//
+//	mRedisMgr->PushResponse(resTask);
+//}
+
 void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
-{ 
-	if (LOGIN_REQUEST_PACKET_SIZE != packetSize_)
-	{
-		return;
-	}
+{
+	if (sizeof(LOGIN_REQUEST_PACKET) != packetSize_) return;
 
 	auto pLoginReqPacket = reinterpret_cast<LOGIN_REQUEST_PACKET*>(pPacket_);
-
 	auto pUserID = pLoginReqPacket->userID;
-	printf("requested user id = %s\n", pUserID);
 
-	LOGIN_RESPONSE_PACKET loginResPacket;
+	printf("Dummy Login Attempt: %s\n", pUserID);
 
-	if (mUserManager->GetCurrentUserCnt() >= mUserManager->GetMaxUserCnt()) 
-	{ 
-		//접속자수가 최대수를 차지해서 접속불가
-		loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_USED_ALL_OBJ;
-		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET) , (char*)&loginResPacket);
+	// 접속자 수 체크
+	if (mUserManager->GetCurrentUserCnt() >= mUserManager->GetMaxUserCnt())
+	{
+		LOGIN_RESPONSE_PACKET res;
+		res.Result = (UINT16)ERROR_CODE::LOGIN_USER_USED_ALL_OBJ;
+		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
 		return;
 	}
 
-	//여기에서 이미 접속된 유저인지 확인하고, 접속된 유저라면 실패한다.
-	//if (mUserManager->FindUserIndexByID(pUserID) == -1) 
-	//{ 
-	//	RedisLoginReq dbReq;
-	//	CopyUserID(dbReq.UserID, pLoginReqPacket->userID);
-	//	CopyMemory(dbReq.UserPW, pLoginReqPacket->userPW, (MAX_USER_PW_LEN + 1));
+	// Redis 거치지 않고 즉시 유저 객체에 로그인 정보 세팅
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (pUser) 
+	{
+		pUser->SetLogin(pUserID);
+	}
 
-	//	RedisTask task;
-	//	task.UserIndex = clientIndex_;
-	//	task.TaskID = RedisTaskID::REQUEST_LOGIN;
-	//	task.DataSize = sizeof(RedisLoginReq);
-	//	task.pData = new char[task.DataSize];
-	//	CopyMemory(task.pData, (char*)&dbReq, task.DataSize);
-	//	mRedisMgr->PushTask(task);
+	// 즉시 클라이언트에 로그인 성공 패킷 전송
+	LOGIN_RESPONSE_PACKET loginResPacket;
 
-	//	printf("Login To Redis user id = %s\n", pUserID);
-	//}
-	//else 
-	//{
-	//	//접속중인 유저여서 실패를 반환한다.
-	//	loginResPacket.Result = (UINT16)ERROR_CODE::LOGIN_USER_ALREADY;
-	//	SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-	//	return;
-	//}
-	
+	loginResPacket.Result = clientIndex_;
 
-	RedisLoginRes bodyData;
-	memset(&bodyData, 0, sizeof(RedisLoginRes));
-	bodyData.Result = (UINT16)ERROR_CODE::NONE;
+	SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 
-	RedisTask resTask;
-	resTask.UserIndex = clientIndex_;
-	resTask.TaskID = RedisTaskID::RESPONSE_LOGIN;
-	resTask.DataSize = sizeof(RedisLoginRes);
-	resTask.pData = new char[resTask.DataSize];
-	CopyMemory(resTask.pData, (char*)&bodyData, resTask.DataSize);
-
-	mRedisMgr->PushResponse(resTask);
+	printf("Dummy Login Success: UserIndex(%d) ID(%s)\n", clientIndex_, pUserID);
 }
 
 void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
@@ -632,6 +669,37 @@ void PacketManager::ProcessDungeonEscape(UINT32 clientIndex_, UINT16 packetSize_
 	}
 }
 
+void PacketManager::ProcessSceneSync(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		pRoom->SyncRoomUsers(pUser);
+	}
+}
+
+void PacketManager::ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto* req = reinterpret_cast<PLAYER_READY_REQUEST_PACKET*>(pPacket_);
+
+	// 유저 찾기
+	auto user = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (user == nullptr)
+	{
+		return;
+	}
+
+	// 유저가 속한 방 찾기
+	auto room = mRoomManager->GetRoomByNumber(user->GetCurrentRoom());
+	if (room != nullptr)
+	{
+		room->ProcessPlayerReady(user, req->isReady);
+	}
+}
+
 void PacketManager::ProcessPlayerAction(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
 	//auto pReq = (PLAYER_ACTION_REQUEST_PACKET*)pPacket_;
@@ -718,6 +786,11 @@ void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSiz
 
 	if (pRoom)
 	{
+		if (pReq->state == 2)
+		{
+			pUser->SetPosition(pReq->targetPos);
+		}
+
 		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
 		ntfPkt.activeUUID = pReq->activeUUID;
 		ntfPkt.gimmickID = pReq->gimmickID;
@@ -1307,19 +1380,17 @@ void PacketManager::UDPRecvThread()
 				if (pUser) 
 				{
 					printf("[UDP] User Found! Setting Input...\n");
-					// 유저의 UDP 주소가 처음 왔다면 등록 (응답 전송용)
-					if (!pUser->isUdpActive)
+
+					pUser->SetPosition(pMovePkt->currentPos);
+					pUser->SetRotation(pMovePkt->currentRot);
+					pUser->SetDirty(true);
+					pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axisH, pMovePkt->axisV, pMovePkt->inputSeq);
+
+					if (!pUser->isUdpActive) 
 					{
 						pUser->SetUDPAddr(clientAddr);
 						pUser->isUdpActive = true;
-						printf("[UDP] New User(%lld) UDP Address Registered!\n", pMovePkt->userUUID);
 					}
-
-					// 서버측 Actor에 목적지 좌표 설정
-					//pUser->SetTarget(pMovePkt->targetPos, pMovePkt->inputSeq);	미니맵 이동
-					//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
-
-					pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axisH, pMovePkt->axisV, pMovePkt->inputSeq);
 				}
 				else
 				{

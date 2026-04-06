@@ -96,6 +96,7 @@ enum class  PACKET_ID : UINT16
 	GAME_START_COUNTDOWN_NTF = 273,		// 서버 -> 클라: 카운트다운 시작
 	GAME_READY_CANCEL_NTF = 274,		// 서버 -> 클라: 누군가 나가서 카운트 취소
 	GAME_START_NTF = 275,				// 서버 -> 클라: 실제 던전 시작 (씬 전환)
+	SCENE_SYNC_REQ = 276,
 	
 	DUNGEON_ESCAPE_REQ = 281,
 	DUNGEON_CLEAR_NTF = 282,
@@ -428,6 +429,11 @@ struct GAME_START_NTF_PACKET : public PACKET_HEADER
 {
 	int mapId; // 진입할 던전 맵 ID
 	GAME_START_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::GAME_START_NTF) {}
+};
+
+struct SCENE_SYNC_REQ_PACKET : public PACKET_HEADER 
+{
+	SCENE_SYNC_REQ_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::SCENE_SYNC_REQ) {}
 };
 
 struct DUNGEON_ESCAPE_REQ_PACKET : public PACKET_HEADER

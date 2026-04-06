@@ -152,7 +152,8 @@ public:
 
 		targetPos = pos;
 		targetRot = rot;
-		this->axis = axis;
+		this->axis.x = axisH;  
+		this->axis.y = axisV;
 		lastInputSeq = seq;
 		isMoving = true;
 	}
@@ -352,10 +353,15 @@ public:
 
 
 	// 위치 강제 세팅
-	void SetPosition(Vector3 pos) 
+	void SetPosition(Vector3 pos)
 	{
 		serverPos = pos;
 		position = pos;
+	}
+
+	void SetRotation(Quaternion q)
+	{
+		rotation = q;
 	}
 
 	/*bool mIsCube = false;
@@ -381,7 +387,16 @@ public:
 	//	}
 	//}
 
+
+	void SetDirty(bool dirty) { mIsDirty = dirty; }
+	bool IsDirty() { return mIsDirty; }
+	// Actor(또는 User) 클래스에 변수 추가
+	Vector3 mLastSentPos = { 0, 0, 0 }; // 추가: 마지막으로 패킷 쏜 위치
+	bool mIsDirty = true; // 마지막으로 패킷 보낸 위치
+
 private:
+
+
 #pragma region Move
 	bool isMoving = false;
 	Vector3 serverPos;   // 서버 확정 현재 위치
