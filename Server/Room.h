@@ -547,7 +547,7 @@ public:
 
 		if (allReady && mCountdownTimer < 0) 
 		{
-			// 카운트다운 시작!
+			// 카운트다운 시작
 			mCountdownTimer = 5.0f;
 			mLastAnnouncedSecond = 6; // 처음 5초 알림을 위해 설정
 			printf("[Room %d] All players ready! Starting countdown.\n", mRoomNum);
@@ -594,11 +594,9 @@ public:
 			}
 		}
 
-		// 4. 모두 모였다면 클리어 처리!
+		// 4. 모두 모였다면 클리어 처리
 		if (allEscaped && mCurrentUserCount > 0)
 		{
-			// [추후 작업] Redis 보상 지급 (GiveClearRewardsToAll 로직)
-			// mRedisMgr->PushTask(...) 형태로 상점이나 거래처럼 DB 업데이트 요청
 			printf("[Room %d] All users escaped! Dungeon Cleared.\n", mRoomNum);
 
 			// 던전 클리어 패킷 브로드캐스트
@@ -612,23 +610,29 @@ public:
 		}
 	}
 
-	void SyncRoomUsers(User* reqUser)
+	void SyncRoomUsers(User* user_)
 	{
-		std::lock_guard<std::recursive_mutex> guard(mLock);
+		if (user_ == nullptr) return;
 
-		for (auto pRoomUser : mUserList)
+		for (auto pRoomUser : mSlots)
 		{
-			// 빈 슬롯이거나 자기 자신이면 패스
-			if (pRoomUser == nullptr || pRoomUser == reqUser) continue;
+			if (pRoomUser == nullptr || pRoomUser == user_) continue;
 
-			// 다른 유저의 정보를 요청자(reqUser)에게 전송
-			ROOM_USER_INFO_NTF_PACKET infoPkt;
-			infoPkt.userUUID = pRoomUser->GetNetConnIdx();
-			CopyUserID(infoPkt.userID, *pRoomUser);
-			infoPkt.position = pRoomUser->GetPosition();
-			infoPkt.rotation = pRoomUser->GetRotation();
+			// 방금 던전 로딩이 끝난 유저에게 -> 기존 유저의 모습을 보여줌
+			ROOM_USER_INFO_NTF_PACKET infoForNew;
+			infoForNew.userUUID = pRoomUser->GetNetConnIdx();
+			CopyUserID(infoForNew.userID, *pRoomUser);
+			infoForNew.position = pRoomUser->GetPosition();
+			infoForNew.rotation = pRoomUser->GetRotation();
+			SendPacketFunc(user_->GetNetConnIdx(), infoForNew.PacketLength, (char*)&infoForNew);
 
-			SendPacketFunc(reqUser->GetNetConnIdx(), infoPkt.PacketLength, (char*)&infoPkt);
+			// 기존 유저에게 -> 방금 던전 로딩이 끝난 유저의 모습을 보여줌
+			ROOM_USER_INFO_NTF_PACKET infoForOld;
+			infoForOld.userUUID = user_->GetNetConnIdx();
+			CopyUserID(infoForOld.userID, *user_);
+			infoForOld.position = user_->GetPosition();
+			infoForOld.rotation = user_->GetRotation();
+			SendPacketFunc(pRoomUser->GetNetConnIdx(), infoForOld.PacketLength, (char*)&infoForOld);
 		}
 	}
 
