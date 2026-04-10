@@ -648,7 +648,8 @@ void PacketManager::ProcessPlayerStateChange(UINT32 clientIndex_, UINT16 packetS
 	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
 	if (pRoom)
 	{
-		pReq->userUUID = clientIndex_;
+		//상태 업데이트 수정으로 송신측 ID X
+		//pReq->userUUID = clientIndex_;
 
 		//브로드캐스트
 		pRoom->SendToAllUser(pReq->PacketLength, pPacket_, clientIndex_, true);
