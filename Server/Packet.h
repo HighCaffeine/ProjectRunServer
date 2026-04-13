@@ -32,8 +32,19 @@ struct RawPacketData
 	{
 		delete pPacketData;
 	}
-};
+}; 
 
+enum eGimmickKey : UINT8
+{
+	BreakableWall = 0,
+	Button,
+	MovableObject,
+	Bridge,
+	SeeSaw,
+	FallingPlatform,
+	MovePlatform,
+	Wind
+};
 
 struct PacketInfo
 {
