@@ -349,6 +349,12 @@ public:
 		//{
 		//	mForceDuration = 0.0f;
 		//}
+
+		if (hasInputMove)
+		{
+			serverPos = nextPos; 
+			mIsDirty = true;     
+		}
 	}
 
 
