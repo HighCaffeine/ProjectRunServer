@@ -43,7 +43,13 @@ enum eGimmickKey : UINT8
 	SeeSaw,
 	FallingPlatform,
 	MovePlatform,
-	Wind
+	Wind,
+	NextZone
+};
+
+enum eState : UINT8
+{
+	Idle, Move, Push, Pull, Dash, Knockback, Teleport, Count
 };
 
 struct PacketInfo
@@ -111,6 +117,8 @@ enum class  PACKET_ID : UINT16
 	
 	DUNGEON_ESCAPE_REQ = 281,
 	DUNGEON_CLEAR_NTF = 282,
+	PLAYER_DEAD_REQ = 283,
+	PLAYER_DEAD_NTF = 284,
 
 	//인벤 / 상점용
 	INVENTORY_INFO = 301,       // 접속갱신 시 인벤토리 정보 전송
@@ -358,9 +366,11 @@ struct UPDATE_PLAYER_MOVEMENT_PACKET : public PACKET_HEADER
 	Quaternion currentRot;
 	
 	//axis
-	Vector2 axis;
-	//Sfloat currentSpeed;		// 모디파이어가 적용된 현재 실시간 속도
-
+	//Vector2 axis;
+	float currentSpeed;		// 모디파이어가 적용된 현재 실시간 속도
+	float axisH;
+	float axisV;
+	bool isMoving;
 	UPDATE_PLAYER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::UPDATE_PLAYER_MOVEMENT) {}
 };
 
@@ -397,6 +407,7 @@ struct PLAYER_GIMMICK_INTERACT_REQUEST_PACKET : public PACKET_HEADER
 {
 	INT64 activeUUID;	//활성화시킨 유저
 	INT32 gimmickID;	//기믹 ID
+	UINT8 gimmickKey;
 	UINT8 state;		//0 : off / 1 : on 등 상태값
 	Vector3 targetPos;	//이동할 목표 좌표 / 밀려날 방향 등
 	float param;		//추가 기믹 데이터 (속도, 밀어내는 힘 등)
@@ -408,6 +419,7 @@ struct PLAYER_GIMMICK_INTERACT_NTF_PACKET : public PACKET_HEADER
 {
 	INT64 activeUUID;	//활성화시킨 유저
 	INT32 gimmickID;	//기믹 ID
+	UINT8 gimmickKey;
 	UINT8 state;		//0 : off / 1 : on 등 상태값
 	Vector3 targetPos;	//이동할 목표 좌표 / 밀려날 방향 등
 	float param;		//추가 기믹 데이터 (속도, 밀어내는 힘 등)
@@ -455,6 +467,19 @@ struct DUNGEON_ESCAPE_REQ_PACKET : public PACKET_HEADER
 struct DUNGEON_CLEAR_NTF_PACKET : public PACKET_HEADER
 {
 	DUNGEON_CLEAR_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::DUNGEON_CLEAR_NTF) {}
+};
+
+struct PLAYER_DEAD_REQ_PACKET : public PACKET_HEADER
+{
+	Vector3 respawnPos;
+	PLAYER_DEAD_REQ_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_DEAD_REQ) {}
+};
+
+struct PLAYER_DEAD_NTF_PACKET : public PACKET_HEADER
+{
+	INT64 userUUID;
+	Vector3 respawnPos;
+	PLAYER_DEAD_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_DEAD_NTF) {}
 };
 
 #pragma endregion

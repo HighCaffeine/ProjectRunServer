@@ -40,6 +40,11 @@ public:
 		serverPos.y = -1.0f;
 		serverPos.z = 0.0f;
 
+		rotation.x = 0.0f;
+		rotation.y = 0.0f;
+		rotation.z = 0.0f;
+		rotation.w = 1.0f;
+
 		targetPos = serverPos;
 		inputX = 0.0f;
 		inputZ = 0.0f;
@@ -396,8 +401,8 @@ public:
 
 	void SetDirty(bool dirty) { mIsDirty = dirty; }
 	bool IsDirty() { return mIsDirty; }
-	// Actor(또는 User) 클래스에 변수 추가
-	Vector3 mLastSentPos = { 0, 0, 0 }; // 추가: 마지막으로 패킷 쏜 위치
+	Vector3 mLastSentPos = { 0, 0, 0 }; // 마지막으로 패킷 쏜 위치
+	Quaternion mLastSentRot = { 0, 0, 0, 1.0f };
 	bool mIsDirty = true; // 마지막으로 패킷 보낸 위치
 
 private:

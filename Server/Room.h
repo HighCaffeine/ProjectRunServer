@@ -34,82 +34,182 @@ public:
 		mIsEscaped.assign(maxUserCount_, false);
 	}
 
-	UINT16 EnterUser(User* user_)
+	//UINT16 EnterUser(User* user_)
+	//{
+	//	std::lock_guard<std::recursive_mutex> guard(mLock);
+	//	if (mCurrentUserCount >= mMaxUserCount)
+	//	{
+	//		return (UINT16)ERROR_CODE::ENTER_ROOM_FULL_USER;
+	//	}
+
+	//	mUserList.push_back(user_);
+	//	++mCurrentUserCount;
+
+	//	//빈 자리중 가장 앞자리에 배치
+	//	int slotIndex = -1;
+	//	for (int i = 0; i < mMaxUserCount; ++i)
+	//	{
+	//		if (mSlots[i] == nullptr)
+	//		{
+	//			mSlots[i] = user_;
+	//			slotIndex = i;
+	//			break;
+	//		}
+	//	}
+
+	//	// 방에 처음 들어온 사람이면 방장으로 임명
+	//	if (mCurrentUserCount == 1)
+	//	{
+	//		mHostUUID = user_->GetNetConnIdx();
+	//	}
+
+	//	user_->EnterRoom(mRoomNum);
+
+	//	Vector3 snappedPos;
+	//	if (NavMeshManager::GetInstance()->GetValidMovePosition(user_->GetPosition(), user_->GetPosition(), snappedPos))
+	//	{
+	//		user_->SetPosition(snappedPos);
+	//	}
+
+	//	// [입장 처리]
+	//	// 기존 유저들에 대해 CanSee(6.0m) 체크 후 시야 등록
+	//	for (auto pRoomUser : mUserList)
+	//	{
+	//		if (pRoomUser == nullptr || pRoomUser == user_) continue;
+
+	//		// 6.0m 이내에 있는가?
+	//		if (CanSee(user_, pRoomUser) == false) continue;
+
+	//		// 서로 시야 목록에 추가
+	//		user_->mVisibleList.insert(pRoomUser->GetNetConnIdx());
+	//		pRoomUser->mVisibleList.insert(user_->GetNetConnIdx());
+
+
+
+	//		// 나에게 상대방 정보 보내기 (Create)
+	//		ROOM_USER_INFO_NTF_PACKET roomUserInfoNtf;
+	//		roomUserInfoNtf.userUUID = pRoomUser->GetNetConnIdx();
+	//		CopyUserID(roomUserInfoNtf.userID, *pRoomUser);
+	//		roomUserInfoNtf.position = pRoomUser->GetPosition();
+	//		roomUserInfoNtf.rotation = pRoomUser->GetRotation();
+	//		SendPacketFunc(user_->GetNetConnIdx(), roomUserInfoNtf.PacketLength, (char*)&roomUserInfoNtf);
+	//	}
+
+	//	// NPC 처리
+	//	for (auto pRoomNpc : mNpcList)
+	//	{
+	//		if (pRoomNpc == nullptr) continue;
+
+	//		if (CanSee(user_, pRoomNpc) == false) continue;
+
+	//		ROOM_USER_INFO_NTF_PACKET roomUserInfoNtf;
+	//		roomUserInfoNtf.userUUID = pRoomNpc->GetNetConnIdx();
+	//		CopyUserID(roomUserInfoNtf.userID, *pRoomNpc);
+	//		roomUserInfoNtf.position = pRoomNpc->GetPosition();
+	//		roomUserInfoNtf.rotation = pRoomNpc->GetRotation();
+	//		SendPacketFunc(user_->GetNetConnIdx(), roomUserInfoNtf.PacketLength, (char*)&roomUserInfoNtf);
+	//	}
+
+	//	BroadcastHostInfo();
+
+	//	return (UINT16)ERROR_CODE::NONE;
+	//}
+
+	// Room.h 내부 EnterUser 함수 구현 수정
+	UINT16 EnterUser(User* pNewUser)
 	{
 		std::lock_guard<std::recursive_mutex> guard(mLock);
+
+		// 1. 방 정원 체크
 		if (mCurrentUserCount >= mMaxUserCount)
 		{
 			return (UINT16)ERROR_CODE::ENTER_ROOM_FULL_USER;
 		}
 
-		mUserList.push_back(user_);
-		++mCurrentUserCount;
-
-		//빈 자리중 가장 앞자리에 배치
+		// 2. 빈 슬롯에 유저 등록
+		int slotIndex = -1;
 		for (int i = 0; i < mMaxUserCount; ++i)
 		{
 			if (mSlots[i] == nullptr)
 			{
-				mSlots[i] = user_;
-				// user_->SetRoomSlotIndex(i); 유저 객체에 번호 저장 가능
+				mSlots[i] = pNewUser;
+				slotIndex = i;
 				break;
 			}
 		}
 
-		// 방에 처음 들어온 사람이면 방장으로 임명
-		if (mCurrentUserCount == 1)
+		if (slotIndex == -1) return (UINT16)ERROR_CODE::ENTER_ROOM_FULL_USER;
+
+		pNewUser->SetDomainState(User::DOMAIN_STATE::ROOM);
+		pNewUser->EnterRoom(mRoomNum);
+
+		// ---------------------------------------------------------
+		// 3. 상호 동기화 (Mutual Notification) 핵심 로직
+		// ---------------------------------------------------------
+
+		// 신규 유저용 응답 패킷 준비 (본인에게 성공 알림)
+		// P_RoomEnterResponse 등 기존 응답 처리는 PacketManager에서 수행됨을 전제
+
+		for (auto pExistingUser : mUserList)
 		{
-			mHostUUID = user_->GetNetConnIdx();
+			if (pExistingUser == nullptr || pExistingUser == pNewUser) continue;
+
+			// A. 기존 유저들에게 -> "신규 유저(pNewUser) 정보"를 전송
+			ROOM_USER_INFO_NTF_PACKET ntfToOld;
+			ntfToOld.userUUID = pNewUser->GetNetConnIdx();
+			CopyUserID(ntfToOld.userID, *pNewUser);
+			ntfToOld.position = pNewUser->GetPosition();
+			ntfToOld.rotation = pNewUser->GetRotation();
+
+			SendPacketFunc(pExistingUser->GetNetConnIdx(), ntfToOld.PacketLength, (char*)&ntfToOld);
+
+			// B. 신규 유저에게 -> "기존 유저(pExistingUser) 정보"를 전송
+			ROOM_USER_INFO_NTF_PACKET ntfToNew; // Packets.cs의 CREATE_MATCH_PLAYER 대응
+			ntfToNew.userUUID = pExistingUser->GetNetConnIdx();
+			CopyUserID(ntfToNew.userID, *pExistingUser);
+			ntfToNew.position = pExistingUser->GetPosition();
+			ntfToNew.rotation = pExistingUser->GetRotation();
+
+			SendPacketFunc(pNewUser->GetNetConnIdx(), ntfToNew.PacketLength, (char*)&ntfToNew);
 		}
 
-		user_->EnterRoom(mRoomNum);
-
-		Vector3 snappedPos;
-		if (NavMeshManager::GetInstance()->GetValidMovePosition(user_->GetPosition(), user_->GetPosition(), snappedPos))
-		{
-			user_->SetPosition(snappedPos);
-		}
-
-		// [입장 처리]
-		// 기존 유저들에 대해 CanSee(6.0m) 체크 후 시야 등록
-		for (auto pRoomUser : mUserList)
-		{
-			if (pRoomUser == nullptr || pRoomUser == user_) continue;
-
-			// 6.0m 이내에 있는가?
-			if (CanSee(user_, pRoomUser) == false) continue;
-
-			// 서로 시야 목록에 추가
-			user_->mVisibleList.insert(pRoomUser->GetNetConnIdx());
-			pRoomUser->mVisibleList.insert(user_->GetNetConnIdx());
-
-			// 나에게 상대방 정보 보내기 (Create)
-			ROOM_USER_INFO_NTF_PACKET roomUserInfoNtf;
-			roomUserInfoNtf.userUUID = pRoomUser->GetNetConnIdx();
-			CopyUserID(roomUserInfoNtf.userID, *pRoomUser);
-			roomUserInfoNtf.position = pRoomUser->GetPosition();
-			roomUserInfoNtf.rotation = pRoomUser->GetRotation();
-			SendPacketFunc(user_->GetNetConnIdx(), roomUserInfoNtf.PacketLength, (char*)&roomUserInfoNtf);
-		}
-
-		// NPC 처리
-		for (auto pRoomNpc : mNpcList)
-		{
-			if (pRoomNpc == nullptr) continue;
-
-			if (CanSee(user_, pRoomNpc) == false) continue;
-
-			ROOM_USER_INFO_NTF_PACKET roomUserInfoNtf;
-			roomUserInfoNtf.userUUID = pRoomNpc->GetNetConnIdx();
-			CopyUserID(roomUserInfoNtf.userID, *pRoomNpc);
-			roomUserInfoNtf.position = pRoomNpc->GetPosition();
-			roomUserInfoNtf.rotation = pRoomNpc->GetRotation();
-			SendPacketFunc(user_->GetNetConnIdx(), roomUserInfoNtf.PacketLength, (char*)&roomUserInfoNtf);
-		}
-
-		BroadcastHostInfo();
+		// 4. 유저 목록에 추가
+		mUserList.push_back(pNewUser);
+		mCurrentUserCount++;
 
 		return (UINT16)ERROR_CODE::NONE;
+	}
+
+	void SyncRoomStateToUser(User* pTargetUser)
+	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+
+		// 1. 방금 씬 로딩을 마친 유저(pTargetUser)에게 기존 유저들의 정보를 쏴줍니다.
+		for (auto pOther : mUserList)
+		{
+			if (pOther == nullptr || pOther == pTargetUser) continue;
+			printf("3. [서버 발송] %s 에게 기존 유저 %s 정보(ROOM_USER_INFO_NTF) 전송!\\n", pTargetUser->GetUserId().c_str(), pOther->GetUserId().c_str());
+			ROOM_USER_INFO_NTF_PACKET ntfToNew;
+			ntfToNew.userUUID = pOther->GetNetConnIdx();
+			CopyUserID(ntfToNew.userID, *pOther);
+			ntfToNew.position = pOther->GetPosition();
+			ntfToNew.rotation = pOther->GetRotation();
+
+			SendPacketFunc(pTargetUser->GetNetConnIdx(), ntfToNew.PacketLength, (char*)&ntfToNew);
+		}
+
+		// 2. [선택] 기존 유저들에게도 "얘 로딩 다 끝났으니 이제 화면에 띄워라!" 라고 알려줍니다.
+		ROOM_USER_INFO_NTF_PACKET ntfToOld;
+		ntfToOld.userUUID = pTargetUser->GetNetConnIdx();
+		CopyUserID(ntfToOld.userID, *pTargetUser);
+		ntfToOld.position = pTargetUser->GetPosition();
+		ntfToOld.rotation = pTargetUser->GetRotation();
+
+		for (auto pOther : mUserList)
+		{
+			if (pOther == nullptr || pOther == pTargetUser) continue;
+			SendPacketFunc(pOther->GetNetConnIdx(), ntfToOld.PacketLength, (char*)&ntfToOld);
+		}
 	}
 
 	Npc* CreateNpc()
@@ -166,7 +266,7 @@ public:
 		ROOM_LEAVE_USER_NTF_PACKET notifyPkt;
 		notifyPkt.userUUID = leaveUser_->GetNetConnIdx();
 		CopyUserID(notifyPkt.userID, *leaveUser_);
-		bool EXCEPT_ME = true;
+		bool EXCEPT_ME = false;
 		SendToAllUser(notifyPkt.PacketLength, (char*)&notifyPkt, notifyPkt.userUUID, EXCEPT_ME);
 
 		//나간 사람이 방장이면 가장 앞번호에게 방장 넘김
@@ -223,7 +323,7 @@ public:
 		ROOM_NEW_USER_NTF_PACKET roomNewUserNtfPkt;
 		roomNewUserNtfPkt.userUUID = clientIndex_;
 		CopyUserID(roomNewUserNtfPkt.userID, userID);
-		bool EXCEPT_ME = false;
+		bool EXCEPT_ME = true;
 		SendToAllUser(roomNewUserNtfPkt.PacketLength, (char*)&roomNewUserNtfPkt, clientIndex_, EXCEPT_ME);
 	}
 
@@ -364,41 +464,47 @@ public:
 			}
 		}
 
-		// 이동 동기화 패킷 전송 (기존 루프 대체)
+		// 이동 동기화 패킷 전송
 		for (auto pMover : mUserList)
 		{
 			if (pMover == nullptr) continue;
 
-			// 1. [핵심] 마지막으로 패킷을 보낸 위치와 현재 위치의 거리를 직접 계산
-			// Vector3_Distance2D가 있다면 사용하시고, 없으면 아래처럼 계산하세요.
 			Vector3 curPos = pMover->GetPosition();
-			Vector3 lastPos = pMover->mLastSentPos; // User 클래스에 이 멤버 변수가 있어야 합니다.
+			Vector3 lastPos = pMover->mLastSentPos;
+			Quaternion curRot = pMover->GetRotation();    // 현재 회전값
+			Quaternion lastRot = pMover->mLastSentRot;    // 이전 회전값
 
 			float dx = curPos.x - lastPos.x;
 			float dz = curPos.z - lastPos.z;
-			float moveDistSq = (dx * dx) + (dz * dz); // 루트 안 씌운 제곱값으로 비교 (연산 절약)
+			float moveDistSq = (dx * dx) + (dz * dz);
 
-			// 2. 전송 조건: 0.01m(제곱값 0.0001f) 이상 움직였거나, 강제 전송 플래그(Dirty)가 켜졌을 때만
-			if (moveDistSq > 0.0001f || pMover->mIsDirty)
+			// 회전했는지
+			float rotDiffSq = (curRot.x - lastRot.x) * (curRot.x - lastRot.x) +
+				(curRot.y - lastRot.y) * (curRot.y - lastRot.y) +
+				(curRot.z - lastRot.z) * (curRot.z - lastRot.z) +
+				(curRot.w - lastRot.w) * (curRot.w - lastRot.w);
+
+			// 위치가 변했거나, 회전이 변했거나, 강제 전송 플래그가 켜졌을 때 검사
+			if (moveDistSq > 0.0001f || rotDiffSq > 0.0001f || pMover->mIsDirty)
 			{
 				UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
 				syncPkt.lastInputSeq = pMover->GetLastInputSeq();
 				syncPkt.userUUID = pMover->GetNetConnIdx();
 				syncPkt.currentPos = curPos;
-				syncPkt.currentRot = pMover->GetRotation();
-				syncPkt.axis = pMover->GetAxis();
+				syncPkt.currentRot = curRot;
+				syncPkt.axisH = pMover->GetAxis().x;
+				syncPkt.axisV = pMover->GetAxis().y;
+				syncPkt.isMoving = (syncPkt.axisH != 0 || syncPkt.axisV != 0);
 
-				// 나를 보고 있는 사람(AOI)에게만 전송
 				for (auto targetIdx : pMover->mVisibleList)
 				{
 					SendPacketFunc((UINT32)targetIdx, syncPkt.PacketLength, (char*)&syncPkt);
 				}
-
-				// 나 자신에게도 확정 좌표 전송 (보정용)
 				SendPacketFunc((UINT32)pMover->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
 
-				// 3. [중요] 전송 완료 후 현재 좌표를 '마지막 전송 좌표'로 저장
+				// 갱신
 				pMover->mLastSentPos = curPos;
+				pMover->mLastSentRot = curRot;
 				pMover->mIsDirty = false;
 			}
 		}
@@ -409,18 +515,32 @@ public:
 
 			Vector3 curPos = pNpc->GetPosition();
 			Vector3 lastPos = pNpc->mLastSentPos;
-			float moveDistSq = (curPos.x - lastPos.x) * (curPos.x - lastPos.x) + (curPos.z - lastPos.z) * (curPos.z - lastPos.z);
+			Quaternion curRot = pNpc->GetRotation();    // 현재 회전값
+			Quaternion lastRot = pNpc->mLastSentRot;    // 이전 회전값
 
-			if (moveDistSq > 0.0001f || pNpc->mIsDirty)
+			float dx = curPos.x - lastPos.x;
+			float dz = curPos.z - lastPos.z;
+			float moveDistSq = (dx * dx) + (dz * dz);
+
+			// 회전했는지
+			float rotDiffSq = (curRot.x - lastRot.x) * (curRot.x - lastRot.x) +
+				(curRot.y - lastRot.y) * (curRot.y - lastRot.y) +
+				(curRot.z - lastRot.z) * (curRot.z - lastRot.z) +
+				(curRot.w - lastRot.w) * (curRot.w - lastRot.w);
+
+			if (moveDistSq > 0.0001f || rotDiffSq > 0.0001f || pNpc->mIsDirty)
 			{
 				UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
 				syncPkt.lastInputSeq = pNpc->GetLastInputSeq();
 				syncPkt.userUUID = pNpc->GetNetConnIdx();
 				syncPkt.currentPos = curPos;
 				syncPkt.currentRot = pNpc->GetRotation();
-				syncPkt.axis = pNpc->GetAxis();
+				syncPkt.axisH = pNpc->GetAxis().x;
+				syncPkt.axisV = pNpc->GetAxis().y;
+				syncPkt.isMoving = (syncPkt.axisH != 0 || syncPkt.axisV != 0);
 
-				for (auto pTarget : mUserList) {
+				for (auto pTarget : mUserList) 
+				{
 					if (pTarget) SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
 				}
 

@@ -39,6 +39,7 @@ void PacketManager::Init(const UINT32 maxClient_)
 	//플레이어 물리 / 기믹 처리
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_ACTION_REQUEST] = &PacketManager::ProcessPlayerAction;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST] = &PacketManager::ProcessGimmickInteract;
+	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_DEAD_REQ] = &PacketManager::ProcessPlayerDead;
 
 	//레디스 응답 패킷
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_LOAD_INVENTORY] = &PacketManager::ProcessInventoryDBResult;
@@ -676,9 +677,14 @@ void PacketManager::ProcessSceneSync(UINT32 clientIndex_, UINT16 packetSize_, ch
 	if (!pUser) return;
 
 	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
-	if (pRoom)
+	if (pRoom != nullptr) 
 	{
-		pRoom->SyncRoomUsers(pUser);
+		printf("2. [서버 수신] %s 유저의 SCENE_SYNC_REQ 받음. (Room: %d)\\n", pUser->GetUserId().c_str(), pRoom->GetRoomNumber());
+		pRoom->SyncRoomStateToUser(pUser);
+	}
+	else 
+	{
+		printf("2. [서버 에러] %s 유저의 방을 찾을 수 없음!\\n", pUser->GetUserId().c_str());
 	}
 }
 
@@ -787,21 +793,61 @@ void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSiz
 
 	if (pRoom)
 	{
-		if (pReq->state == 2)
+		if (pReq->state == eGimmickKey::NextZone)
 		{
-			pUser->SetPosition(pReq->targetPos);
+			pUser->SetPosition(pReq->targetPos); // 서버 좌표 갱신
+
+			PLAYER_STATUS_NTF_PACKET statusPkt;
+			statusPkt.userUUID = pReq->activeUUID;
+			statusPkt.newState = eGimmickKey::NextZone;
+			statusPkt.targetDir = pReq->targetPos;
+			statusPkt.powerOrTime = 0.0f;
+
+			pRoom->BroadcastPacket(statusPkt.PacketLength, (char*)&statusPkt);
+
+			printf("[Teleport] User %lld Moved via Portal to %.2f, %.2f, %.2f\n",
+				pReq->activeUUID, pReq->targetPos.x, pReq->targetPos.y, pReq->targetPos.z);
+
+			return;
 		}
 
+		// 일반 기믹 처리 로직 (상자 밀기, 버튼 등)
 		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
 		ntfPkt.activeUUID = pReq->activeUUID;
 		ntfPkt.gimmickID = pReq->gimmickID;
+		ntfPkt.gimmickKey = pReq->gimmickKey; 
 		ntfPkt.state = pReq->state;
 		ntfPkt.targetPos = pReq->targetPos;
 		ntfPkt.param = pReq->param;
 
 		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 
-		printf("[Gimmick] %lld gimmick id : %d, pos : ", ntfPkt.activeUUID, ntfPkt.gimmickID);
+		printf("[Gimmick] %lld gimmick id : %d, key : %d, state : %d\n",
+			ntfPkt.activeUUID, ntfPkt.gimmickID, ntfPkt.gimmickKey, ntfPkt.state);
+	}
+}
+
+void PacketManager::ProcessPlayerDead(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pReq = (PLAYER_DEAD_REQ_PACKET*)pPacket_;
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		pUser->SetPosition(pReq->respawnPos); // 서버 좌표 시체 위치 -> 부활 위치 갱신
+
+		PLAYER_STATUS_NTF_PACKET statusPkt;
+		statusPkt.userUUID = clientIndex_;
+		statusPkt.newState = eState::Teleport;
+		statusPkt.targetDir = pReq->respawnPos; // 부활 좌표를 담음
+		statusPkt.powerOrTime = 0.0f;
+
+		pRoom->BroadcastPacket(statusPkt.PacketLength, (char*)&statusPkt);
+
+		printf("[Respawn] User %d Respawned at: %.2f, %.2f, %.2f\n",
+			clientIndex_, pReq->respawnPos.x, pReq->respawnPos.y, pReq->respawnPos.z);
 	}
 }
 
