@@ -237,6 +237,16 @@ public:
 	void LeaveUser(User* leaveUser_)
 	{
 		std::lock_guard<std::recursive_mutex> guard(mLock);
+
+		for (auto pUser : mUserList)
+		{
+			if (pUser != nullptr)
+			{
+				pUser->mVisibleList.erase(leaveUser_->GetNetConnIdx());
+			}
+		}
+		leaveUser_->mVisibleList.clear();
+
 		mUserList.remove_if([leaveUserId = leaveUser_->GetUserId()](User* pUser) {
 			return leaveUserId == pUser->GetUserId();
 			});
@@ -253,9 +263,9 @@ public:
 
 		--mCurrentUserCount;
 
-		for (int i = 0; i < mMaxUserCount; ++i) 
+		for (int i = 0; i < mMaxUserCount; ++i)
 		{
-			if (mSlots[i] == leaveUser_) 
+			if (mSlots[i] == leaveUser_)
 			{
 				mIsReady[i] = false;
 				break;
@@ -272,10 +282,10 @@ public:
 		//나간 사람이 방장이면 가장 앞번호에게 방장 넘김
 		if (leaveUser_->GetNetConnIdx() == mHostUUID)
 		{
-			if (mCurrentUserCount <= 0) 
+			if (mCurrentUserCount <= 0)
 			{
 				mHostUUID = -1;
-				return; 
+				return;
 			}
 
 			mHostUUID = -1; // 초기화

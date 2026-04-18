@@ -512,6 +512,19 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 
 	auto roomNumber = pRoomEnterReqPacket->RoomNumber;
 	
+	INT32 currentRoom = pReqUser->GetCurrentRoom();
+	if (currentRoom != -1)
+	{
+		mRoomManager->LeaveUser(currentRoom, pReqUser);
+	}
+
+	Vector3 zeroPos = { 0.0f, 0.0f, 0.0f };
+	Quaternion zeroRot = { 0.0f, 0.0f, 0.0f, 1.0f };
+	float zeroAxis = 0.0f;
+
+	pReqUser->SetPosition(zeroPos);
+	pReqUser->mLastSentPos = zeroPos;
+	pReqUser->SetTarget(zeroPos, zeroRot, zeroAxis, zeroAxis, 0);
 			
 	// Room::EnterUser()에서 입장하는 유저에게 방안 유저 리스트를 전송한다
 	auto enterResult = mRoomManager->EnterUser(roomNumber, pReqUser);
@@ -525,14 +538,13 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 
 	if (enterResult != (UINT16)ERROR_CODE::NONE)
 	{
-		spdlog::info("[Enter] User({}) Entered Room Number [{}]", clientIndex_, roomNumber);
-		return;
+		spdlog::warn("[Enter] User({}) Failed. Error: {}", clientIndex_, enterResult);
+		return; 
 	}
 	else
 	{
-		spdlog::warn("[Enter] User({}) Failed. Error: {}", clientIndex_, enterResult);
+		spdlog::info("[Enter] User({}) Entered Room Number [{}]", clientIndex_, roomNumber);
 	}
-
 	auto pRoom = mRoomManager->GetRoomByNumber(roomNumber);
 
 
