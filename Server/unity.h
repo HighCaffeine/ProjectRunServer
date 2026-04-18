@@ -16,7 +16,7 @@ constexpr int TRADE_INVENTORY_SIZE = 9;
 
 enum eGimmickKey : UINT8
 {
-    NONE = 0,
+    Gimmick_NONE = 0,
     BreakableWall = 1,
     Button = 2,
     MovableObject = 3,
@@ -27,7 +27,7 @@ enum eGimmickKey : UINT8
     MovePlatform = 8,
     Wind = 9,
     NextZone = 10,
-    Count = 11
+    Gimmick_Count = 11
 };
 
 enum eGimmickState : UINT8
@@ -46,7 +46,7 @@ enum eState : UINT8
     Dash = 4,
     Knockback = 5,
     Teleport = 6,
-    Count = 7
+    State_Count = 7
 };
 
 typedef struct Vector2

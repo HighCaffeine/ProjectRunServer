@@ -36,5 +36,5 @@ inline UINT8 ConvertGimmickTypeToEnum(const std::string& typeStr)
     if (typeStr == "Wind") return (UINT8)eGimmickKey::Wind;
     if (typeStr == "NextZone") return (UINT8)eGimmickKey::NextZone;
 
-    return (UINT8)eGimmickKey::NONE;
+    return (UINT8)eGimmickKey::Gimmick_NONE;
 }
