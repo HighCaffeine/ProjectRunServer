@@ -670,7 +670,7 @@ public:
 		for (int i = 0; i < mMaxUserCount; ++i) 
 		{
 			// 접속 중인 슬롯인데 준비가 안 됐다면 false
-			if (mSlots[i] != nullptr && !mIsReady[i]) 
+			if (mSlots[i] == nullptr || !mIsReady[i])
 			{
 				allReady = false;
 				break;
@@ -688,7 +688,7 @@ public:
 		{
 			// 누군가 준비 영역을 나감 -> 카운트다운 취소
 			mCountdownTimer = -1.0f;
-			PACKET_HEADER cancelPkt(sizeof(PACKET_HEADER), PACKET_ID::GAME_READY_CANCEL_NTF);
+			GAME_READY_CANCEL_NTF_PACKET cancelPkt;
 			BroadcastPacket(cancelPkt.PacketLength, (char*)&cancelPkt);
 			printf("[Room %d] Countdown canceled.\n", mRoomNum);
 		}

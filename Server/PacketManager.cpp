@@ -824,7 +824,15 @@ void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSiz
 			return;
 		}
 
-		pRoom->ProcessGimmickInteract(pUser, pReq);
+		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+		ntfPkt.activeUUID = pReq->activeUUID;
+		ntfPkt.gimmickID = pReq->gimmickID;
+		ntfPkt.gimmickKey = pReq->gimmickKey;
+		ntfPkt.state = pReq->state;
+		ntfPkt.param = pReq->param;
+		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+
+		//pRoom->ProcessGimmickInteract(pUser, pReq);
 	}
 }
 

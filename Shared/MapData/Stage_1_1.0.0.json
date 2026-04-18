@@ -1,0 +1,554 @@
+{
+  "meta": {
+    "map_id": 101,
+    "map_name": "Stage_1",
+    "version": "1.0.0"
+  },
+  "gimmicks": [
+    {
+      "gimmick_id": 1689,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 358.822327,
+        "y": 14.4756317,
+        "z": -338.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 36155,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 358.822327,
+        "y": 14.4756317,
+        "z": -332.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 23150,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 358.822327,
+        "y": 14.4756317,
+        "z": -326.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 51334,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 358.822327,
+        "y": 14.4756317,
+        "z": -320.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 37757,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 358.822327,
+        "y": 14.4756317,
+        "z": -314.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 34797,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 358.822327,
+        "y": 14.4756317,
+        "z": -302.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 44653,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 358.822327,
+        "y": 14.4756317,
+        "z": -296.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 60877,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 358.822327,
+        "y": 14.4756317,
+        "z": -290.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 21960,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 268.822327,
+        "y": 6.47563171,
+        "z": -338.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 66557,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 274.822327,
+        "y": 10.4756317,
+        "z": -302.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 54454,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 280.822327,
+        "y": 10.4756317,
+        "z": -302.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 97391,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 292.822327,
+        "y": 10.4756317,
+        "z": -302.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 6168,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 298.822327,
+        "y": 10.4756317,
+        "z": -302.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 21468,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 316.822327,
+        "y": 14.4756317,
+        "z": -356.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 81991,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 322.822327,
+        "y": 14.4756317,
+        "z": -356.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 58862,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 334.822327,
+        "y": 14.4756317,
+        "z": -356.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 51865,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 340.822327,
+        "y": 14.4756317,
+        "z": -356.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 34793,
+      "type": "MovePlatform",
+      "position": {
+        "x": 582.8223,
+        "y": 6.47563171,
+        "z": -352.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": {
+        "x": 583.8223,
+        "y": 6.47563171,
+        "z": -335.924316
+      },
+      "end_pos": {
+        "x": 583.8223,
+        "y": 6.47563171,
+        "z": -371.924316
+      },
+      "properties": {}
+    },
+    {
+      "gimmick_id": 91189,
+      "type": "MovePlatform",
+      "position": {
+        "x": 642.8223,
+        "y": 10.4756317,
+        "z": -328.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": {
+        "x": 623.8223,
+        "y": 10.4756317,
+        "z": -327.924316
+      },
+      "end_pos": {
+        "x": 659.8223,
+        "y": 10.4756317,
+        "z": -327.924316
+      },
+      "properties": {}
+    },
+    {
+      "gimmick_id": 17485,
+      "type": "MovePlatform",
+      "position": {
+        "x": 606.8223,
+        "y": 12.4756317,
+        "z": -292.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": {
+        "x": 587.8223,
+        "y": 12.4756317,
+        "z": -291.924316
+      },
+      "end_pos": {
+        "x": 623.8223,
+        "y": 12.4756317,
+        "z": -291.924316
+      },
+      "properties": {}
+    },
+    {
+      "gimmick_id": 56326,
+      "type": "MovePlatform",
+      "position": {
+        "x": 606.8223,
+        "y": 12.4756317,
+        "z": -280.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": {
+        "x": 623.8223,
+        "y": 12.4756317,
+        "z": -279.924316
+      },
+      "end_pos": {
+        "x": 587.8223,
+        "y": 12.4756317,
+        "z": -279.924316
+      },
+      "properties": {}
+    },
+    {
+      "gimmick_id": 87103,
+      "type": "MovePlatform",
+      "position": {
+        "x": 606.8223,
+        "y": 12.4756317,
+        "z": -268.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": {
+        "x": 587.8223,
+        "y": 12.4756317,
+        "z": -267.924316
+      },
+      "end_pos": {
+        "x": 623.8223,
+        "y": 12.4756317,
+        "z": -267.924316
+      },
+      "properties": {}
+    },
+    {
+      "gimmick_id": 14078,
+      "type": "Bridge",
+      "position": {
+        "x": 584.8223,
+        "y": 13.4756317,
+        "z": -370.924316
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 86148,
+      "type": "MovePlatform",
+      "position": {
+        "x": 560.8223,
+        "y": 12.4756317,
+        "z": -593.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": {
+        "x": 541.8223,
+        "y": 12.4756317,
+        "z": -594.9243
+      },
+      "end_pos": {
+        "x": 577.8223,
+        "y": 12.4756317,
+        "z": -594.9243
+      },
+      "properties": {}
+    },
+    {
+      "gimmick_id": 73736,
+      "type": "MovePlatform",
+      "position": {
+        "x": 560.8223,
+        "y": 12.4756317,
+        "z": -581.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": {
+        "x": 577.8223,
+        "y": 12.4756317,
+        "z": -582.9243
+      },
+      "end_pos": {
+        "x": 541.8223,
+        "y": 12.4756317,
+        "z": -582.9243
+      },
+      "properties": {}
+    },
+    {
+      "gimmick_id": 49551,
+      "type": "MovePlatform",
+      "position": {
+        "x": 560.8223,
+        "y": 12.4756317,
+        "z": -569.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": {
+        "x": 541.8223,
+        "y": 12.4756317,
+        "z": -570.9243
+      },
+      "end_pos": {
+        "x": 577.8223,
+        "y": 12.4756317,
+        "z": -570.9243
+      },
+      "properties": {}
+    },
+    {
+      "gimmick_id": 75185,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 609.8223,
+        "y": 14.4756317,
+        "z": -574.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 75185,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 609.8223,
+        "y": 14.4756317,
+        "z": -580.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 75185,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 609.8223,
+        "y": 14.4756317,
+        "z": -592.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 38444,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 609.8223,
+        "y": 14.4756317,
+        "z": -598.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 76212,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 609.8223,
+        "y": 14.4756317,
+        "z": -604.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 76212,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 609.8223,
+        "y": 14.4756317,
+        "z": -610.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 76212,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 621.8223,
+        "y": 14.4756317,
+        "z": -610.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 48619,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 627.8223,
+        "y": 14.4756317,
+        "z": -610.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 22205,
+      "type": "FallingPlatform",
+      "position": {
+        "x": 633.8223,
+        "y": 14.4756317,
+        "z": -610.9243
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 14079,
+      "type": "Bridge",
+      "position": {
+        "x": 556.766663,
+        "y": 27.43274,
+        "z": -556.439636
+      },
+      "rotation_y": 0.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    },
+    {
+      "gimmick_id": 0,
+      "type": null,
+      "position": {
+        "x": 649.222351,
+        "y": 5.475631,
+        "z": -586.7243
+      },
+      "rotation_y": 180.0,
+      "start_pos": null,
+      "end_pos": null,
+      "properties": {}
+    }
+  ]
+}

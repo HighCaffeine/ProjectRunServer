@@ -23,9 +23,14 @@ file(GLOB_RECURSE DETOUR_SOURCES
 )
 
 # DetourTileCache 소스
+#file(GLOB_RECURSE TILECACHE_SOURCES 
+#    "${TP_DIR}/recastnavigation/DetourTileCache/*.cpp" 
+#    "${TP_DIR}/recastnavigation/DetourTileCache/*.h"
+#)
+
+# json gimmick data
 file(GLOB_RECURSE TILECACHE_SOURCES 
-    "${TP_DIR}/recastnavigation/DetourTileCache/*.cpp" 
-    "${TP_DIR}/recastnavigation/DetourTileCache/*.h"
+    "${CMAKE_SOURCE_DIR}/Shared/MapData/*.json"
 )
 
 # FastLZ 소스
