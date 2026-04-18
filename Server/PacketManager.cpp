@@ -805,6 +805,7 @@ void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSiz
 
 	if (pRoom)
 	{
+		//Next Zone만 바로 처리
 		if (pReq->state == eGimmickKey::NextZone)
 		{
 			pUser->SetPosition(pReq->targetPos); // 서버 좌표 갱신
@@ -823,19 +824,7 @@ void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSiz
 			return;
 		}
 
-		// 일반 기믹 처리 로직 (상자 밀기, 버튼 등)
-		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
-		ntfPkt.activeUUID = pReq->activeUUID;
-		ntfPkt.gimmickID = pReq->gimmickID;
-		ntfPkt.gimmickKey = pReq->gimmickKey; 
-		ntfPkt.state = pReq->state;
-		ntfPkt.targetPos = pReq->targetPos;
-		ntfPkt.param = pReq->param;
-
-		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
-
-		printf("[Gimmick] %lld gimmick id : %d, key : %d, state : %d\n",
-			ntfPkt.activeUUID, ntfPkt.gimmickID, ntfPkt.gimmickKey, ntfPkt.state);
+		pRoom->ProcessGimmickInteract(pUser, pReq);
 	}
 }
 
@@ -1365,7 +1354,9 @@ void PacketManager::LogicThread()
 				if (auto pRoom = mRoomManager->GetRoomByNumber(i)) 
 				{
 					pRoom->Update(FIXED_DELTA_TIME);
-					NavMeshManager::GetInstance()->UpdateTileCache(FIXED_DELTA_TIME);
+					
+					//nav 사용 X
+					//NavMeshManager::GetInstance()->UpdateTileCache(FIXED_DELTA_TIME);
 				}
 			}
 

@@ -34,24 +34,6 @@ struct RawPacketData
 	}
 }; 
 
-enum eGimmickKey : UINT8
-{
-	BreakableWall = 0,
-	Button,
-	MovableObject,
-	Bridge,
-	SeeSaw,
-	FallingPlatform,
-	MovePlatform,
-	Wind,
-	NextZone
-};
-
-enum eState : UINT8
-{
-	Idle, Move, Push, Pull, Dash, Knockback, Teleport, Count
-};
-
 struct PacketInfo
 {
 	UINT32 ClientIndex = 0;

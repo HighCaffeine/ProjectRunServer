@@ -3,6 +3,8 @@
 #include "Npc.h"
 #include "UserManager.h"
 #include "Packet.h"
+#include "gimmickdata.h"
+#include "unity.h"
 
 #include <functional>
 
@@ -766,6 +768,145 @@ public:
 		}
 	}
 
+	void LoadMapData(const std::string& mapFilePath)
+	{
+		// 1. 파일 안전하게 열기
+		FILE* fp = fopen(mapFilePath.c_str(), "rb");
+		if (!fp)
+		{
+			printf("[Error] 맵 JSON 파일을 찾을 수 없습니다: %s\n", mapFilePath.c_str());
+			return;
+		}
+
+		// 2. RapidJSON 스트림 읽기 (성능을 위해 버퍼 사용)
+		char readBuffer[65536];
+		rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+		rapidjson::Document doc;
+		doc.ParseStream(is);
+		fclose(fp);
+
+		// 3. JSON 유효성 검사
+		if (doc.HasParseError() || !doc.IsObject())
+		{
+			printf("[Error] JSON 파싱 실패 또는 올바른 객체가 아닙니다.\n");
+			return;
+		}
+
+		// 4. "gimmicks" 배열 파싱
+		if (doc.HasMember("gimmicks") && doc["gimmicks"].IsArray())
+		{
+			const rapidjson::Value& gimmicksArray = doc["gimmicks"];
+
+			for (rapidjson::SizeType i = 0; i < gimmicksArray.Size(); i++)
+			{
+				const rapidjson::Value& g = gimmicksArray[i];
+				ServerGimmickData data;
+
+				// 초기값 세팅
+				data.currentState = 0;
+				data.startPos = { 0,0,0 };
+				data.endPos = { 0,0,0 };
+
+				// ID 파싱
+				if (g.HasMember("gimmick_id") && g["gimmick_id"].IsInt()) 
+				{
+					data.gimmickID = g["gimmick_id"].GetInt();
+				}
+
+				// Type 파싱 (String -> Enum)
+				if (g.HasMember("type") && g["type"].IsString()) {
+					data.type = ConvertGimmickTypeToEnum(g["type"].GetString());
+				}
+
+				// Position 파싱 (_Vector3 객체)
+				if (g.HasMember("position") && g["position"].IsObject()) 
+				{
+					const auto& pos = g["position"];
+					data.position.x = pos.HasMember("x") ? pos["x"].GetFloat() : 0.0f;
+					data.position.y = pos.HasMember("y") ? pos["y"].GetFloat() : 0.0f;
+					data.position.z = pos.HasMember("z") ? pos["z"].GetFloat() : 0.0f;
+				}
+
+				// StartPos 파싱 (있는 경우에만)
+				if (g.HasMember("start_pos") && g["start_pos"].IsObject()) 
+				{
+					const auto& spos = g["start_pos"];
+					data.startPos.x = spos.HasMember("x") ? spos["x"].GetFloat() : 0.0f;
+					data.startPos.y = spos.HasMember("y") ? spos["y"].GetFloat() : 0.0f;
+					data.startPos.z = spos.HasMember("z") ? spos["z"].GetFloat() : 0.0f;
+				}
+
+				// EndPos 파싱 (있는 경우에만)
+				if (g.HasMember("end_pos") && g["end_pos"].IsObject()) 
+				{
+					const auto& epos = g["end_pos"];
+					data.endPos.x = epos.HasMember("x") ? epos["x"].GetFloat() : 0.0f;
+					data.endPos.y = epos.HasMember("y") ? epos["y"].GetFloat() : 0.0f;
+					data.endPos.z = epos.HasMember("z") ? epos["z"].GetFloat() : 0.0f;
+				}
+
+				// Properties 파싱 (C# Dictionary -> C++ unordered_map)
+				if (g.HasMember("properties") && g["properties"].IsObject()) 
+				{
+					for (auto it = g["properties"].MemberBegin(); it != g["properties"].MemberEnd(); ++it) 
+					{
+						if (it->value.IsNumber()) 
+						{
+							// Key는 String, Value는 Float로 저장
+							data.properties[it->name.GetString()] = it->value.GetFloat();
+						}
+					}
+				}
+
+				// 맵에 최종 등록
+				mGimmicks[data.gimmickID] = data;
+			}
+		}
+
+		printf("[Room %d] 맵 데이터 로딩 완료! 총 기믹 수: %zu개\n", mRoomNum, mGimmicks.size());
+	}
+	void ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT_REQUEST_PACKET* pReq) // 실제 패킷 구조체 이름 사용
+	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+
+		// 1. 서버에 존재하는 기믹인지 검증
+		auto it = mGimmicks.find(pReq->gimmickID);
+		if (it == mGimmicks.end())
+		{
+			printf("[Warning] 존재하지 않는 기믹 ID(%d) 조작 요청!\n", pReq->gimmickID);
+			return;
+		}
+
+		// 2. 이미 같은 상태라면 중복 브로드캐스트 방지 (시소 동기화처럼 Sync 상태면 통과시킴)
+		if (pReq->state != (byte)eGimmickState::Sync && it->second.currentState == pReq->state)
+		{
+			return;
+		}
+
+		// 3. 서버 상태 업데이트
+		it->second.currentState = pReq->state;
+
+		// 4. NTF 브로드캐스트 구성
+		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+		ntfPkt.activeUUID = pReq->activeUUID;
+		ntfPkt.gimmickID = pReq->gimmickID;
+		ntfPkt.gimmickKey = pReq->gimmickKey;
+		ntfPkt.state = pReq->state;
+		ntfPkt.param = pReq->param;
+
+		// 이동형 및 추락형 플랫폼은 서버에 로드된 확실한 End 좌표를 내려줌
+		if (ntfPkt.gimmickKey == eGimmickKey::MovePlatform || ntfPkt.gimmickKey == eGimmickKey::FallingPlatform)
+		{
+			ntfPkt.targetPos = { it->second.endPos.x, it->second.endPos.y, it->second.endPos.z };
+		}
+		else
+		{
+			ntfPkt.targetPos = pReq->targetPos;
+		}
+
+		BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+		printf("[Gimmick Auth] 서버 검증 완료. 기믹 %d 상태(%d) 브로드캐스트.\n", pReq->gimmickID, pReq->state);
+	}
 private:
 	bool CanSee(User* viewer, Actor* target)
 	{
@@ -773,6 +914,7 @@ private:
 
 		float dist = Vector3_Distance2D(viewer->GetPosition(), target->GetPosition());
 
+		return true;
 		bool isTargetInBush = NavMeshManager::GetInstance()->IsInBush(target->GetPosition());
 
 		if (isTargetInBush)
@@ -784,6 +926,8 @@ private:
 
 		return true;
 	}
+
+	std::unordered_map<int, ServerGimmickData> mGimmicks;
 
 	Vector3 bossLinePos;
 
@@ -806,7 +950,6 @@ private:
 	float mCountdownTimer = -1.0f; // -1이면 카운트다운 중 아님
 	int mLastAnnouncedSecond = 0;
 };
-
 
 void CopyUserID(char* userID, const Actor& user)
 {

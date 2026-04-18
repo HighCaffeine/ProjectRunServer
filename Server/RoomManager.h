@@ -15,16 +15,16 @@ public:
 
 		mRoomList = std::vector<Room*>(maxRoomCount_);
 
-		// temp
-		const std::string navMeshFileName("all_tiles_tilecache.bin");
-
-		NavMeshManager::GetInstance()->Init(navMeshFileName);
+		// Nav »ç¿ë X
+		//const std::string navMeshFileName("all_tiles_tilecache.bin");
+		//NavMeshManager::GetInstance()->Init(navMeshFileName);
 
 		for (auto i = 0; i < maxRoomCount_; i++)
 		{
 			mRoomList[i] = new Room();
 			mRoomList[i]->SendPacketFunc = SendPacketFunc;
-			mRoomList[i]->Init((i + beginRoomNumber_), maxRoomUserCount_, navMeshFileName);
+			mRoomList[i]->Init((i + beginRoomNumber_), maxRoomUserCount_, nullptr);
+			mRoomList[i]->LoadMapData("ServerData/Stage_V1_1.0.0.json");
 		}
 	}
 

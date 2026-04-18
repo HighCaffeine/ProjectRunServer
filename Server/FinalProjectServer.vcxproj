@@ -164,6 +164,7 @@
     <ClInclude Include="CRedisConnEx.h" />
     <ClInclude Include="ErrorCode.h" />
     <ClInclude Include="GameServer.h" />
+    <ClInclude Include="GimmickData.h" />
     <ClInclude Include="LogManager.h" />
     <ClInclude Include="Mapdata.h" />
     <ClInclude Include="MapDataLoader.h" />
