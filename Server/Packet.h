@@ -195,6 +195,7 @@ struct ROOM_USER_INFO_NTF_PACKET : public PACKET_HEADER
 	Vector3 position;
 	Quaternion rotation;
 
+
 	ROOM_USER_INFO_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::ROOM_USER_INFO_NTF) {}
 };
 

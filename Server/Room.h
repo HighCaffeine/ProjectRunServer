@@ -27,7 +27,7 @@ public:
 	INT32 GetCurrentUserCount() { return mCurrentUserCount; }
 	INT32 GetRoomNumber() { return mRoomNum; }
 
-	void Init(const INT32 roomNum_, const INT32 maxUserCount_, const std::string& navMeshFileName)
+	void Init(const INT32 roomNum_, const INT32 maxUserCount_)
 	{
 		mRoomNum = roomNum_;
 		mMaxUserCount = maxUserCount_;
@@ -178,6 +178,14 @@ public:
 		// 4. 유저 목록에 추가
 		mUserList.push_back(pNewUser);
 		mCurrentUserCount++;
+
+		if (mCurrentUserCount == 1)
+		{
+			mHostUUID = pNewUser->GetNetConnIdx();
+		}
+
+		BroadcastHostInfo();
+
 
 		return (UINT16)ERROR_CODE::NONE;
 	}
@@ -770,29 +778,27 @@ public:
 
 	void LoadMapData(const std::string& mapFilePath)
 	{
-		// 1. 파일 안전하게 열기
 		FILE* fp = fopen(mapFilePath.c_str(), "rb");
-		if (!fp)
+		if (fp == nullptr)
 		{
 			printf("[Error] 맵 JSON 파일을 찾을 수 없습니다: %s\n", mapFilePath.c_str());
 			return;
 		}
 
-		// 2. RapidJSON 스트림 읽기 (성능을 위해 버퍼 사용)
+		// RapidJSON
 		char readBuffer[65536];
 		rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
 		rapidjson::Document doc;
 		doc.ParseStream(is);
 		fclose(fp);
 
-		// 3. JSON 유효성 검사
 		if (doc.HasParseError() || !doc.IsObject())
 		{
-			printf("[Error] JSON 파싱 실패 또는 올바른 객체가 아닙니다.\n");
+			printf("[Error] JSON 파싱 실패.\n");
 			return;
 		}
 
-		// 4. "gimmicks" 배열 파싱
+		// gimmicks 파싱
 		if (doc.HasMember("gimmicks") && doc["gimmicks"].IsArray())
 		{
 			const rapidjson::Value& gimmicksArray = doc["gimmicks"];
@@ -845,14 +851,13 @@ public:
 					data.endPos.z = epos.HasMember("z") ? epos["z"].GetFloat() : 0.0f;
 				}
 
-				// Properties 파싱 (C# Dictionary -> C++ unordered_map)
+				// Properties 파싱
 				if (g.HasMember("properties") && g["properties"].IsObject()) 
 				{
 					for (auto it = g["properties"].MemberBegin(); it != g["properties"].MemberEnd(); ++it) 
 					{
 						if (it->value.IsNumber()) 
 						{
-							// Key는 String, Value는 Float로 저장
 							data.properties[it->name.GetString()] = it->value.GetFloat();
 						}
 					}
@@ -897,7 +902,14 @@ public:
 		// 이동형 및 추락형 플랫폼은 서버에 로드된 확실한 End 좌표를 내려줌
 		if (ntfPkt.gimmickKey == eGimmickKey::MovePlatform || ntfPkt.gimmickKey == eGimmickKey::FallingPlatform)
 		{
-			ntfPkt.targetPos = { it->second.endPos.x, it->second.endPos.y, it->second.endPos.z };
+			if (pReq->state == (byte)eGimmickState::Sync)
+			{
+				ntfPkt.targetPos = pReq->targetPos;
+			}
+			else
+			{
+				ntfPkt.targetPos = { it->second.endPos.x, it->second.endPos.y, it->second.endPos.z };
+			}
 		}
 		else
 		{
