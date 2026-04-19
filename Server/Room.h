@@ -495,8 +495,9 @@ public:
 			Quaternion lastRot = pMover->mLastSentRot;    // 이전 회전값
 
 			float dx = curPos.x - lastPos.x;
+			float dy = curPos.y - lastPos.y;
 			float dz = curPos.z - lastPos.z;
-			float moveDistSq = (dx * dx) + (dz * dz);
+			float moveDistSq = (dx * dx) + (dy * dy) + (dz * dz);
 
 			// 회전했는지
 			float rotDiffSq = (curRot.x - lastRot.x) * (curRot.x - lastRot.x) +
@@ -870,11 +871,11 @@ public:
 
 		printf("[Room %d] 맵 데이터 로딩 완료! 총 기믹 수: %zu개\n", mRoomNum, mGimmicks.size());
 	}
-	void ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT_REQUEST_PACKET* pReq) // 실제 패킷 구조체 이름 사용
+
+	void ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT_REQUEST_PACKET* pReq)
 	{
 		std::lock_guard<std::recursive_mutex> guard(mLock);
 
-		// 1. 서버에 존재하는 기믹인지 검증
 		auto it = mGimmicks.find(pReq->gimmickID);
 		if (it == mGimmicks.end())
 		{
@@ -882,16 +883,13 @@ public:
 			return;
 		}
 
-		// 2. 이미 같은 상태라면 중복 브로드캐스트 방지 (시소 동기화처럼 Sync 상태면 통과시킴)
 		if (pReq->state != (byte)eGimmickState::Sync && it->second.currentState == pReq->state)
 		{
 			return;
 		}
 
-		// 3. 서버 상태 업데이트
 		it->second.currentState = pReq->state;
 
-		// 4. NTF 브로드캐스트 구성
 		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
 		ntfPkt.activeUUID = pReq->activeUUID;
 		ntfPkt.gimmickID = pReq->gimmickID;
@@ -899,7 +897,6 @@ public:
 		ntfPkt.state = pReq->state;
 		ntfPkt.param = pReq->param;
 
-		// 이동형 및 추락형 플랫폼은 서버에 로드된 확실한 End 좌표를 내려줌
 		if (ntfPkt.gimmickKey == eGimmickKey::MovePlatform || ntfPkt.gimmickKey == eGimmickKey::FallingPlatform)
 		{
 			if (pReq->state == (byte)eGimmickState::Sync)
@@ -910,14 +907,34 @@ public:
 			{
 				ntfPkt.targetPos = { it->second.endPos.x, it->second.endPos.y, it->second.endPos.z };
 			}
+
+
+			BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, pReq->targetPos, 30.0f);
 		}
 		else
 		{
-			ntfPkt.targetPos = pReq->targetPos;
+			BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 		}
+	}
 
-		BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
-		printf("[Gimmick Auth] 서버 검증 완료. 기믹 %d 상태(%d) 브로드캐스트.\n", pReq->gimmickID, pReq->state);
+	void BroadcastPacketInRange(int len, char* pkt, Vector3 center, float range)
+	{
+		float rangeSq = range * range;
+
+		for (auto pTarget : mUserList)
+		{
+			if (pTarget == nullptr) continue;
+
+			Vector3 pos = pTarget->GetPosition();
+			float dx = pos.x - center.x;
+			float dz = pos.z - center.z;
+			float distSq = dx * dx + dz * dz;
+
+			if (distSq <= rangeSq)
+			{
+				SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), len, pkt);
+			}
+		}
 	}
 private:
 	bool CanSee(User* viewer, Actor* target)

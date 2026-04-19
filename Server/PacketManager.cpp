@@ -805,8 +805,7 @@ void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSiz
 
 	if (pRoom)
 	{
-		//Next Zone만 바로 처리
-		if (pReq->state == eGimmickKey::NextZone)
+		if (pReq->gimmickKey == eGimmickKey::NextZone)
 		{
 			pUser->SetPosition(pReq->targetPos); // 서버 좌표 갱신
 
@@ -824,15 +823,7 @@ void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSiz
 			return;
 		}
 
-		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
-		ntfPkt.activeUUID = pReq->activeUUID;
-		ntfPkt.gimmickID = pReq->gimmickID;
-		ntfPkt.gimmickKey = pReq->gimmickKey;
-		ntfPkt.state = pReq->state;
-		ntfPkt.param = pReq->param;
-		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
-
-		//pRoom->ProcessGimmickInteract(pUser, pReq);
+		pRoom->ProcessGimmickInteract(pUser, pReq);
 	}
 }
 
@@ -1410,41 +1401,38 @@ void PacketManager::UDPRecvThread()
 	int addrLen = sizeof(clientAddr);
 	char buf[2048];
 	printf("[System] UDP Recv Thread Started on Port 5025\n");
-	while (mIsRunLogicThread) 
+	while (mIsRunLogicThread)
 	{
 		int recvLen = recvfrom(mUdpSocket, buf, 2048, 0, (sockaddr*)&clientAddr, &addrLen);
 
-		if (recvLen > 0) 
+		if (recvLen > 0)
 		{
 			auto pHeader = (PACKET_HEADER*)buf;
 			m_TotalRecvBytes += recvLen;
 			m_GrandTotalSendBytes += m_TotalRecvBytes;
 
-			printf("[UDP] Packet Recv! ID:%d, Len:%d\n", pHeader->PacketId, recvLen);
-			if (pHeader->PacketId == (UINT16)PACKET_ID::PLAYER_MOVEMENT) 
+			//printf("[UDP] Packet Recv! ID:%d, Len:%d\n", pHeader->PacketId, recvLen);
+
+			if (pHeader->PacketId == (UINT16)PACKET_ID::PLAYER_MOVEMENT)
 			{
+				// 이동 패킷은 지연 없이 UDP 스레드에서 직접 처리
 				auto pMovePkt = (PLAYER_MOVEMENT_PACKET*)buf;
 				printf("[UDP] Move Packet -> UserUUID: %lld\n", pMovePkt->userUUID);
 				if (pMovePkt->userUUID < 0 || pMovePkt->userUUID >= mUserManager->GetMaxUserCnt())
 				{
-					continue; 
+					continue;
 				}
 
-				/*spdlog::info("[RUDP] User : {} | Seq : {} Pos : {:.2f}, {:.2f}",
-					pMovePkt->userUUID, pMovePkt->inputSeq, pMovePkt->dx, pMovePkt->dz);*/
-
-				// 패킷 내의 userUUID나 clientAddr를 통해 유저 식별
 				auto pUser = mUserManager->GetUserByConnIdx(pMovePkt->userUUID);
-				if (pUser) 
+				if (pUser)
 				{
 					printf("[UDP] User Found! Setting Input...\n");
-
 					pUser->SetPosition(pMovePkt->currentPos);
 					pUser->SetRotation(pMovePkt->currentRot);
 					pUser->SetDirty(true);
 					pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axisH, pMovePkt->axisV, pMovePkt->inputSeq);
 
-					if (!pUser->isUdpActive) 
+					if (!pUser->isUdpActive)
 					{
 						pUser->SetUDPAddr(clientAddr);
 						pUser->isUdpActive = true;
@@ -1452,10 +1440,44 @@ void PacketManager::UDPRecvThread()
 				}
 				else
 				{
-					// 유저를 못 찾음
 					printf("[UDP Error] User Not Found! UUID: %lld / MaxUser: %d\n",
 						pMovePkt->userUUID, mUserManager->GetMaxUserCnt());
 				}
+			}
+			else
+			{
+				// 이동 패킷 외 모든 UDP 패킷은 SystemPacketQueue에 넣어서 ProcessPacket에서 처리
+				UINT32 clientIndex = 0;
+
+				// 패킷 종류별로 clientIndex 추출
+				switch ((PACKET_ID)pHeader->PacketId)
+				{
+					case PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST:
+					{
+						auto pPkt = (PLAYER_GIMMICK_INTERACT_REQUEST_PACKET*)buf;
+						clientIndex = (UINT32)pPkt->activeUUID;
+						break;
+					}
+					case PACKET_ID::PLAYER_STATUS_NTF:
+					{
+						auto pPkt = (PLAYER_STATUS_NTF_PACKET*)buf;
+						clientIndex = (UINT32)pPkt->userUUID;
+						break;
+					}
+					// UDP로 추가되는 패킷은 여기에 case 추가
+					default:
+						printf("[UDP] Unhandled Packet ID: %d, dropping.\n", pHeader->PacketId);
+						continue;
+				}
+
+				PacketInfo pktInfo;
+				pktInfo.ClientIndex = clientIndex;
+				pktInfo.PacketId = pHeader->PacketId;
+				pktInfo.DataSize = recvLen;
+				pktInfo.pDataPtr = new char[recvLen];
+				memcpy(pktInfo.pDataPtr, buf, recvLen);
+
+				PushSystemPacket(pktInfo);
 			}
 		}
 	}
