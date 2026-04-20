@@ -364,6 +364,8 @@ struct PLAYER_STATUS_NTF_PACKET : public PACKET_HEADER
 	UINT8 newState;     // 0:Idle, 1:Move, 2:Push, 3:Pull, 4:Dash, 5:Knockback 등
 	Vector3 targetDir;  // 넉백 방향, 대쉬 방향 등
 	float powerOrTime;  // 넉백 파워, 대쉬 시간 등
+	UINT8 isPull;
+	Vector3 casterPos;
 	PLAYER_STATUS_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_STATUS_NTF) {}
 };
 #pragma endregion

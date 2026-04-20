@@ -22,6 +22,9 @@ struct ServerGimmickData
     std::unordered_map<std::string, float> properties;
 
     int currentState; // 0: Off, 1: On, 2: Sync
+
+    // Gimmick의 복구 시간 검사
+    float gimmickRecoverTime;
 };
 
 inline UINT8 ConvertGimmickTypeToEnum(const std::string& typeStr)

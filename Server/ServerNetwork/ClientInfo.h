@@ -198,7 +198,7 @@ public:
 
 	void SendCompleted(const UINT32 dataSize_)
 	{		
-		printf("[송신 완료] bytes : %d\n", dataSize_);
+		//printf("[송신 완료] bytes : %d\n", dataSize_);
 
 		std::lock_guard<std::mutex> guard(mSendLock);
 

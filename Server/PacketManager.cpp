@@ -336,7 +336,7 @@ void PacketManager::ProcessPacket()
 
 void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_)
 {
-	printf("[Debug] Packet Received. Index: %d, ID: %d, Size: %d\n", clientIndex_, packetId_, packetSize_);
+	//printf("[Debug] Packet Received. Index: %d, ID: %d, Size: %d\n", clientIndex_, packetId_, packetSize_);
 
 	auto iter = mRecvFuntionDictionary.find(packetId_);
 	if (iter != mRecvFuntionDictionary.end())
@@ -807,15 +807,19 @@ void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSiz
 	{
 		if (pReq->gimmickKey == eGimmickKey::NextZone)
 		{
-			pUser->SetPosition(pReq->targetPos); // 서버 좌표 갱신
+			pUser->SetPosition(pReq->targetPos);
 
-			PLAYER_STATUS_NTF_PACKET statusPkt;
-			statusPkt.userUUID = pReq->activeUUID;
-			statusPkt.newState = eGimmickKey::NextZone;
-			statusPkt.targetDir = pReq->targetPos;
-			statusPkt.powerOrTime = 0.0f;
+			PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+			ntfPkt.activeUUID = pReq->activeUUID;
+			ntfPkt.gimmickID = pReq->gimmickID;
+			ntfPkt.gimmickKey = pReq->gimmickKey;
 
-			pRoom->BroadcastPacket(statusPkt.PacketLength, (char*)&statusPkt);
+			ntfPkt.state = 2;
+			ntfPkt.targetPos = pReq->targetPos;
+
+			ntfPkt.param = pReq->param;
+
+			pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 
 			printf("[Teleport] User %lld Moved via Portal to %.2f, %.2f, %.2f\n",
 				pReq->activeUUID, pReq->targetPos.x, pReq->targetPos.y, pReq->targetPos.z);
@@ -837,12 +841,15 @@ void PacketManager::ProcessPlayerDead(UINT32 clientIndex_, UINT16 packetSize_, c
 	if (pRoom)
 	{
 		pUser->SetPosition(pReq->respawnPos); // 서버 좌표 시체 위치 -> 부활 위치 갱신
-
+		Vector3 p;
+		p.x = 0; p.y = 0; p.z = 0;
 		PLAYER_STATUS_NTF_PACKET statusPkt;
 		statusPkt.userUUID = clientIndex_;
 		statusPkt.newState = eState::Teleport;
 		statusPkt.targetDir = pReq->respawnPos; // 부활 좌표를 담음
 		statusPkt.powerOrTime = 0.0f;
+		statusPkt.isPull = 0;
+		statusPkt.casterPos = p;
 
 		pRoom->BroadcastPacket(statusPkt.PacketLength, (char*)&statusPkt);
 
@@ -1417,7 +1424,7 @@ void PacketManager::UDPRecvThread()
 			{
 				// 이동 패킷은 지연 없이 UDP 스레드에서 직접 처리
 				auto pMovePkt = (PLAYER_MOVEMENT_PACKET*)buf;
-				printf("[UDP] Move Packet -> UserUUID: %lld\n", pMovePkt->userUUID);
+				//printf("[UDP] Move Packet -> UserUUID: %lld\n", pMovePkt->userUUID);
 				if (pMovePkt->userUUID < 0 || pMovePkt->userUUID >= mUserManager->GetMaxUserCnt())
 				{
 					continue;
@@ -1426,7 +1433,7 @@ void PacketManager::UDPRecvThread()
 				auto pUser = mUserManager->GetUserByConnIdx(pMovePkt->userUUID);
 				if (pUser)
 				{
-					printf("[UDP] User Found! Setting Input...\n");
+					//printf("[UDP] User Found! Setting Input...\n");
 					pUser->SetPosition(pMovePkt->currentPos);
 					pUser->SetRotation(pMovePkt->currentRot);
 					pUser->SetDirty(true);

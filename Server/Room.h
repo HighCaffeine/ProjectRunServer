@@ -570,6 +570,54 @@ public:
 			}
 		}
 
+		for (auto& pair : mGimmicks)
+		{
+			ServerGimmickData& gimmick = pair.second;
+
+			if (gimmick.type == (int)eGimmickKey::FallingPlatform && gimmick.currentState == 1)
+			{
+				if (gimmick.gimmickRecoverTime > 0.0f)
+				{
+					gimmick.gimmickRecoverTime -= dt;
+
+					if (gimmick.gimmickRecoverTime <= 0.0f)
+					{
+						gimmick.currentState = 0; // 상태를 0(Off/복구)으로 변경
+						gimmick.gimmickRecoverTime = 0.0f;
+
+						PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+						ntfPkt.activeUUID = -1; 
+						ntfPkt.gimmickID = gimmick.gimmickID;
+						ntfPkt.gimmickKey = gimmick.type;
+						ntfPkt.state = (byte)eGimmickState::Restore; // 0
+						ntfPkt.param = 0.0f;
+
+						ntfPkt.targetPos = { gimmick.position.x, gimmick.position.y, gimmick.position.z };
+
+						// AOI 거리 기반 전송 (반경 40m)
+						const float AOI_RANGE_SQ = 40.0f * 40.0f;
+						for (auto pTarget : mUserList)
+						{
+							if (pTarget == nullptr) continue;
+
+							float dx = pTarget->GetPosition().x - ntfPkt.targetPos.x;
+							float dy = pTarget->GetPosition().y - ntfPkt.targetPos.y;
+							float dz = pTarget->GetPosition().z - ntfPkt.targetPos.z;
+							float distSq = (dx * dx) + (dy * dy) + (dz * dz);
+
+							if (distSq <= AOI_RANGE_SQ)
+							{
+								SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), ntfPkt.PacketLength, (char*)&ntfPkt);
+							}
+						}
+
+						// printf("[Room %d] 추락 발판(ID: %d) 복구 완료. State 0 브로드캐스트.\n", mRoomNum, gimmick.gimmickID);
+					}
+				}
+			}
+		}
+
+
 		// 이동 동기화 패킷 전송
 		//for (auto pUser : mUserList)
 		//{
@@ -890,6 +938,11 @@ public:
 
 		it->second.currentState = pReq->state;
 
+		if (it->second.type == (int)eGimmickKey::FallingPlatform && pReq->state == 1)
+		{
+			it->second.gimmickRecoverTime = 7.0f;
+		}
+
 		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
 		ntfPkt.activeUUID = pReq->activeUUID;
 		ntfPkt.gimmickID = pReq->gimmickID;
@@ -897,7 +950,7 @@ public:
 		ntfPkt.state = pReq->state;
 		ntfPkt.param = pReq->param;
 
-		if (ntfPkt.gimmickKey == eGimmickKey::MovePlatform || ntfPkt.gimmickKey == eGimmickKey::FallingPlatform)
+		if (ntfPkt.gimmickKey == eGimmickKey::MovePlatform)
 		{
 			if (pReq->state == (byte)eGimmickState::Sync)
 			{
@@ -905,10 +958,10 @@ public:
 			}
 			else
 			{
-				ntfPkt.targetPos = { it->second.endPos.x, it->second.endPos.y, it->second.endPos.z };
+				ntfPkt.targetPos = { it->second.position.x, it->second.position.y, it->second.position.z };
 			}
 
-
+			//BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 			BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, pReq->targetPos, 30.0f);
 		}
 		else
@@ -919,6 +972,8 @@ public:
 
 	void BroadcastPacketInRange(int len, char* pkt, Vector3 center, float range)
 	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+
 		float rangeSq = range * range;
 
 		for (auto pTarget : mUserList)
@@ -927,8 +982,10 @@ public:
 
 			Vector3 pos = pTarget->GetPosition();
 			float dx = pos.x - center.x;
+			float dy = pos.y - center.y; 
 			float dz = pos.z - center.z;
-			float distSq = dx * dx + dz * dz;
+
+			float distSq = (dx * dx) + (dy * dy) + (dz * dz);
 
 			if (distSq <= rangeSq)
 			{
