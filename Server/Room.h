@@ -933,7 +933,15 @@ public:
 
 		if (pReq->state != (byte)eGimmickState::Sync && it->second.currentState == pReq->state)
 		{
-			return;
+			if (pReq->gimmickKey == 1)
+			{
+				printf("[Room Gimmick] Breakwall Exception\n");
+			}
+			else
+			{
+				// 벽 부수기가 아닌 다른 기믹들은 정상적으로 중복 요청을 무시함
+				return;
+			}
 		}
 
 		it->second.currentState = pReq->state;
@@ -961,8 +969,8 @@ public:
 				ntfPkt.targetPos = { it->second.position.x, it->second.position.y, it->second.position.z };
 			}
 
-			//BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
-			BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, pReq->targetPos, 30.0f);
+			BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+			//BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, pReq->targetPos, 30.0f);
 		}
 		else
 		{
