@@ -3,6 +3,7 @@
 #include <WinSock2.h>
 #include <unordered_set>
 #include <mutex>
+#include <vector>
 
 #include "Actor.h"
 #include "unity.h"
@@ -19,7 +20,7 @@ public:
 	void Init(const INT32 index)
 	{
 		Actor::Init(index);
-		mPakcetDataBuffer = new char[PACKET_DATA_BUFFER_SIZE];
+		mPacketDataBuffer.resize(PACKET_DATA_BUFFER_SIZE);
 	}
 
 	void Clear()
@@ -27,51 +28,48 @@ public:
 		Actor::Clear();
 		mIsConfirm = false;
 
-		mPakcetDataBufferWPos = 0;
-		mPakcetDataBufferRPos = 0;
+		mPacketDataBufferWPos = 0;
+		mPacketDataBufferRPos = 0;
 	}
 
 		
 	void SetPacketData(const UINT32 dataSize_, char* pData_)
 	{
 		std::lock_guard<std::mutex> guard(mLock);
-		if ((mPakcetDataBufferWPos + dataSize_) >= PACKET_DATA_BUFFER_SIZE)
+		if ((mPacketDataBufferWPos + dataSize_) >= PACKET_DATA_BUFFER_SIZE)
 		{
-			auto remainDataSize = mPakcetDataBufferWPos - mPakcetDataBufferRPos;
+			auto remainDataSize = mPacketDataBufferWPos - mPacketDataBufferRPos;
 
 			if (remainDataSize > 0)
 			{
-				CopyMemory(&mPakcetDataBuffer[0], &mPakcetDataBuffer[mPakcetDataBufferRPos], remainDataSize);
-				mPakcetDataBufferWPos = remainDataSize;
+				CopyMemory(&mPacketDataBuffer[0], &mPacketDataBuffer[mPacketDataBufferRPos], remainDataSize);
+				mPacketDataBufferWPos = remainDataSize;
 			}
 			else
 			{
-				mPakcetDataBufferWPos = 0;
+				mPacketDataBufferWPos = 0;
 			}
-			
-			mPakcetDataBufferRPos = 0;
+
+			mPacketDataBufferRPos = 0;
 		}
 
-		CopyMemory(&mPakcetDataBuffer[mPakcetDataBufferWPos], pData_, dataSize_);
-		mPakcetDataBufferWPos += dataSize_;
+		CopyMemory(&mPacketDataBuffer[mPacketDataBufferWPos], pData_, dataSize_);
+		mPacketDataBufferWPos += dataSize_;
 	}
 
 	PacketInfo GetPacket()
 	{
 		std::lock_guard<std::mutex> guard(mLock);
-		const int PACKET_SIZE_LENGTH = 2;
-		const int PACKET_TYPE_LENGTH = 2;
-		short packetSize = 0;
-		
-		UINT32 remainByte = mPakcetDataBufferWPos - mPakcetDataBufferRPos;
+		const int PACKET_HEADER_LENGTH = 4;
+		UINT32 remainByte = mPacketDataBufferWPos - mPacketDataBufferRPos;
 
 		if(remainByte < PACKET_HEADER_LENGTH)
 		{
 			return PacketInfo();
 		}
 
-		auto pHeader = (PACKET_HEADER*)&mPakcetDataBuffer[mPakcetDataBufferRPos];
-		
+		auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferRPos];
+
 		if (pHeader->PacketLength > remainByte)
 		{
 			return PacketInfo();
@@ -80,9 +78,8 @@ public:
 		PacketInfo packetInfo;
 		packetInfo.PacketId = pHeader->PacketId;
 		packetInfo.DataSize = pHeader->PacketLength;
-		packetInfo.pDataPtr = &mPakcetDataBuffer[mPakcetDataBufferRPos];
-		
-		mPakcetDataBufferRPos += pHeader->PacketLength;
+		packetInfo.pDataPtr = &mPacketDataBuffer[mPacketDataBufferRPos];
+		mPacketDataBufferRPos += pHeader->PacketLength;
 
 		return packetInfo;
 	}
@@ -125,8 +122,9 @@ private:
 	int mInventory[INVENTORY_SIZE] = { 0, };
 	
 
-	UINT32 mPakcetDataBufferWPos = 0;
-	UINT32 mPakcetDataBufferRPos = 0;
+	std::vector<char> mPacketDataBuffer;
+	UINT32 mPacketDataBufferWPos = 0;
+	UINT32 mPacketDataBufferRPos = 0;
 	char* mPakcetDataBuffer = nullptr;
 };
 

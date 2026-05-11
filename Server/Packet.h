@@ -4,36 +4,6 @@
 #include <windows.h>
 #include "unity.h"
 
-struct RawPacketData
-{
-	UINT32 ClientIndex = 0;
-	UINT32 DataSize = 0;
-	char* pPacketData = nullptr;
-
-	void Set(RawPacketData& vlaue)
-	{
-		ClientIndex = vlaue.ClientIndex;
-		DataSize = vlaue.DataSize;
-
-		pPacketData = new char[vlaue.DataSize];
-		CopyMemory(pPacketData, vlaue.pPacketData, vlaue.DataSize);
-	}
-
-	void Set(UINT32 clientIndex_, UINT32 dataSize_, char* pData)
-	{
-		ClientIndex = clientIndex_;
-		DataSize = dataSize_;
-
-		pPacketData = new char[dataSize_];
-		CopyMemory(pPacketData, pData, dataSize_);
-	}
-
-	void Release()
-	{
-		delete pPacketData;
-	}
-}; 
-
 struct PacketInfo
 {
 	UINT32 ClientIndex = 0;

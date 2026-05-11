@@ -123,6 +123,9 @@
     <ClInclude Include="GimmickData.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="GimmickManager.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Packet.cpp">
@@ -169,6 +172,9 @@
     </ClCompile>
     <ClCompile Include="..\thirdparty\recastnavigation\DetourTileCache\Source\DetourTileCacheBuilder.cpp">
       <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="GimmickManager.cpp">
+      <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

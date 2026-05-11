@@ -5,20 +5,33 @@
 #include "Packet.h"
 #include "gimmickdata.h"
 #include "unity.h"
+#include "GimmickManager.h"
 
 #include <functional>
 
-void CopyUserID(char* userID, const Actor& user);
-void CopyUserID(char* userID, const std::string& userID_);
-void CopyUserID(char* userID, const char* userID_);
+inline void CopyUserID(char* userID, const char* userID_)
+{
+	CopyMemory(userID, userID_, (MAX_USER_ID_LEN + 1));
+}
+
+inline void CopyUserID(char* userID, const std::string& userID_)
+{
+	CopyMemory(userID, userID_.c_str(), userID_.size() + 1);
+}
+
+inline void CopyUserID(char* userID, const Actor& user)
+{
+	CopyUserID(userID, user.GetUserId());
+}
 
 class Room
 {
-	// 들어올 때는 6m, 나갈 때는 7.5m (1.5m의 여유 버퍼)
-	//const float ENTER_RANGE = 6.0f;
-	//const float LEAVE_RANGE = 7.5f;
-	const float ENTER_RANGE = 99999.0f;
-	const float LEAVE_RANGE = 99999.0f;
+	const float ENTER_RANGE = 25;
+	const float LEAVE_RANGE = 30;
+	const float ENTER_RANGE_SQ = ENTER_RANGE * ENTER_RANGE;
+	const float LEAVE_RANGE_SQ = LEAVE_RANGE * LEAVE_RANGE;
+
+	GimmickManager mGimmickManager;
 public:
 	Room() = default;
 	~Room() = default;
@@ -36,86 +49,10 @@ public:
 		mIsEscaped.assign(maxUserCount_, false);
 	}
 
-	//UINT16 EnterUser(User* user_)
-	//{
-	//	std::lock_guard<std::recursive_mutex> guard(mLock);
-	//	if (mCurrentUserCount >= mMaxUserCount)
-	//	{
-	//		return (UINT16)ERROR_CODE::ENTER_ROOM_FULL_USER;
-	//	}
-
-	//	mUserList.push_back(user_);
-	//	++mCurrentUserCount;
-
-	//	//빈 자리중 가장 앞자리에 배치
-	//	int slotIndex = -1;
-	//	for (int i = 0; i < mMaxUserCount; ++i)
-	//	{
-	//		if (mSlots[i] == nullptr)
-	//		{
-	//			mSlots[i] = user_;
-	//			slotIndex = i;
-	//			break;
-	//		}
-	//	}
-
-	//	// 방에 처음 들어온 사람이면 방장으로 임명
-	//	if (mCurrentUserCount == 1)
-	//	{
-	//		mHostUUID = user_->GetNetConnIdx();
-	//	}
-
-	//	user_->EnterRoom(mRoomNum);
-
-	//	Vector3 snappedPos;
-	//	if (NavMeshManager::GetInstance()->GetValidMovePosition(user_->GetPosition(), user_->GetPosition(), snappedPos))
-	//	{
-	//		user_->SetPosition(snappedPos);
-	//	}
-
-	//	// [입장 처리]
-	//	// 기존 유저들에 대해 CanSee(6.0m) 체크 후 시야 등록
-	//	for (auto pRoomUser : mUserList)
-	//	{
-	//		if (pRoomUser == nullptr || pRoomUser == user_) continue;
-
-	//		// 6.0m 이내에 있는가?
-	//		if (CanSee(user_, pRoomUser) == false) continue;
-
-	//		// 서로 시야 목록에 추가
-	//		user_->mVisibleList.insert(pRoomUser->GetNetConnIdx());
-	//		pRoomUser->mVisibleList.insert(user_->GetNetConnIdx());
-
-
-
-	//		// 나에게 상대방 정보 보내기 (Create)
-	//		ROOM_USER_INFO_NTF_PACKET roomUserInfoNtf;
-	//		roomUserInfoNtf.userUUID = pRoomUser->GetNetConnIdx();
-	//		CopyUserID(roomUserInfoNtf.userID, *pRoomUser);
-	//		roomUserInfoNtf.position = pRoomUser->GetPosition();
-	//		roomUserInfoNtf.rotation = pRoomUser->GetRotation();
-	//		SendPacketFunc(user_->GetNetConnIdx(), roomUserInfoNtf.PacketLength, (char*)&roomUserInfoNtf);
-	//	}
-
-	//	// NPC 처리
-	//	for (auto pRoomNpc : mNpcList)
-	//	{
-	//		if (pRoomNpc == nullptr) continue;
-
-	//		if (CanSee(user_, pRoomNpc) == false) continue;
-
-	//		ROOM_USER_INFO_NTF_PACKET roomUserInfoNtf;
-	//		roomUserInfoNtf.userUUID = pRoomNpc->GetNetConnIdx();
-	//		CopyUserID(roomUserInfoNtf.userID, *pRoomNpc);
-	//		roomUserInfoNtf.position = pRoomNpc->GetPosition();
-	//		roomUserInfoNtf.rotation = pRoomNpc->GetRotation();
-	//		SendPacketFunc(user_->GetNetConnIdx(), roomUserInfoNtf.PacketLength, (char*)&roomUserInfoNtf);
-	//	}
-
-	//	BroadcastHostInfo();
-
-	//	return (UINT16)ERROR_CODE::NONE;
-	//}
+	void LoadMapData(const std::string& path, INT32 roomNum)
+	{
+		mGimmickManager.LoadMapData(path, roomNum);
+	}
 
 	// Room.h 내부 EnterUser 함수 구현 수정
 	UINT16 EnterUser(User* pNewUser)
@@ -194,11 +131,11 @@ public:
 	{
 		std::lock_guard<std::recursive_mutex> guard(mLock);
 
-		// 1. 방금 씬 로딩을 마친 유저(pTargetUser)에게 기존 유저들의 정보를 쏴줍니다.
+		// 방금 로딩 끝난 유저에게 유저정보 전송
 		for (auto pOther : mUserList)
 		{
 			if (pOther == nullptr || pOther == pTargetUser) continue;
-			printf("3. [서버 발송] %s 에게 기존 유저 %s 정보(ROOM_USER_INFO_NTF) 전송!\\n", pTargetUser->GetUserId().c_str(), pOther->GetUserId().c_str());
+			printf("3. [서버 발송] %s 에게 기존 유저 %s 정보(ROOM_USER_INFO_NTF) 전송\\n", pTargetUser->GetUserId().c_str(), pOther->GetUserId().c_str());
 			ROOM_USER_INFO_NTF_PACKET ntfToNew;
 			ntfToNew.userUUID = pOther->GetNetConnIdx();
 			CopyUserID(ntfToNew.userID, *pOther);
@@ -208,7 +145,7 @@ public:
 			SendPacketFunc(pTargetUser->GetNetConnIdx(), ntfToNew.PacketLength, (char*)&ntfToNew);
 		}
 
-		// 2. [선택] 기존 유저들에게도 "얘 로딩 다 끝났으니 이제 화면에 띄워라!" 라고 알려줍니다.
+		// 기존 유저에게도 접속 데이터 전송
 		ROOM_USER_INFO_NTF_PACKET ntfToOld;
 		ntfToOld.userUUID = pTargetUser->GetNetConnIdx();
 		CopyUserID(ntfToOld.userID, *pTargetUser);
@@ -445,16 +382,19 @@ public:
 				if (pTarget == nullptr || pViewer == pTarget) continue;
 
 				// 실제 거리 계산
-				float dist = Vector3_Distance2D(pViewer->GetPosition(), pTarget->GetPosition());
+				Vector3 viewerPos = pViewer->GetPosition();
+				Vector3 targetPos = pTarget->GetPosition();
+				float dx = viewerPos.x - targetPos.x;
+				float dz = viewerPos.z - targetPos.z;
+				float distSq = (dx * dx) + (dz * dz);
 
-				// 현재 시야 목록에 있는지 확인
 				bool wasVisible = (pViewer->mVisibleList.find(pTarget->GetNetConnIdx()) != pViewer->mVisibleList.end());
 				bool canSee = CanSee(pViewer, pTarget);
 
 				// 안 보이다가 -> 6.0m 안으로 들어옴 (Enter)
 				if (!wasVisible)
 				{
-					if (dist <= ENTER_RANGE && CanSee(pViewer, pTarget))
+					if (distSq <= ENTER_RANGE && CanSee(pViewer, pTarget))
 					{
 						pViewer->mVisibleList.insert(pTarget->GetNetConnIdx());
 
@@ -470,7 +410,7 @@ public:
 				// 보이다가 -> 7.5m 밖으로 나감 (Leave) / 부쉬에 들어가서 안보임
 				else
 				{
-					if (dist > LEAVE_RANGE || !canSee)
+					if (distSq > LEAVE_RANGE || !canSee)
 					{
 						pViewer->mVisibleList.erase(pTarget->GetNetConnIdx());
 
@@ -570,100 +510,7 @@ public:
 			}
 		}
 
-		for (auto& pair : mGimmicks)
-		{
-			ServerGimmickData& gimmick = pair.second;
-
-			if (gimmick.type == (int)eGimmickKey::FallingPlatform && gimmick.currentState == 1)
-			{
-				if (gimmick.gimmickRecoverTime > 0.0f)
-				{
-					gimmick.gimmickRecoverTime -= dt;
-
-					if (gimmick.gimmickRecoverTime <= 0.0f)
-					{
-						gimmick.currentState = 0; // 상태를 0(Off/복구)으로 변경
-						gimmick.gimmickRecoverTime = 0.0f;
-
-						PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
-						ntfPkt.activeUUID = -1; 
-						ntfPkt.gimmickID = gimmick.gimmickID;
-						ntfPkt.gimmickKey = gimmick.type;
-						ntfPkt.state = (byte)eGimmickState::Restore; // 0
-						ntfPkt.param = 0.0f;
-
-						ntfPkt.targetPos = { gimmick.position.x, gimmick.position.y, gimmick.position.z };
-
-						// AOI 거리 기반 전송 (반경 40m)
-						const float AOI_RANGE_SQ = 40.0f * 40.0f;
-						for (auto pTarget : mUserList)
-						{
-							if (pTarget == nullptr) continue;
-
-							float dx = pTarget->GetPosition().x - ntfPkt.targetPos.x;
-							float dy = pTarget->GetPosition().y - ntfPkt.targetPos.y;
-							float dz = pTarget->GetPosition().z - ntfPkt.targetPos.z;
-							float distSq = (dx * dx) + (dy * dy) + (dz * dz);
-
-							if (distSq <= AOI_RANGE_SQ)
-							{
-								SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), ntfPkt.PacketLength, (char*)&ntfPkt);
-							}
-						}
-
-						// printf("[Room %d] 추락 발판(ID: %d) 복구 완료. State 0 브로드캐스트.\n", mRoomNum, gimmick.gimmickID);
-					}
-				}
-			}
-		}
-
-
-		// 이동 동기화 패킷 전송
-		//for (auto pUser : mUserList)
-		//{
-		//	if (pUser == nullptr || !pUser->GetIsMoving()) continue;
-
-		//	UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
-		//	syncPkt.lastInputSeq = pUser->GetLastInputSeq();
-		//	syncPkt.userUUID = pUser->GetNetConnIdx();
-		//	syncPkt.currentPos = pUser->GetPosition();
-		//	syncPkt.currentRot = pUser->GetRotation();
-		//	syncPkt.axis = pUser->GetAxis();
-		//	
-		//	//syncPkt.isMoving = pUser->GetIsMoving();
-		//	//syncPkt.currentSpeed = pUser->GetCurrentSpeed();
-		//	//SendToAllUser(syncPkt.PacketLength, (char*)&syncPkt, pUser->GetNetConnIdx(), false);
-		//	for (auto pTarget : mUserList) 
-		//	{
-		//		if (pTarget) 
-		//		{
-		//			SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
-		//		}
-		//	}
-		//}
-
-		//for (auto pNpc : mNpcList)
-		//{
-		//	if (pNpc == nullptr || !pNpc->GetIsMoving()) continue;
-
-		//	UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
-		//	syncPkt.lastInputSeq = pNpc->GetLastInputSeq();
-		//	syncPkt.userUUID = pNpc->GetNetConnIdx();
-		//	syncPkt.currentPos = pNpc->GetPosition();
-		//	syncPkt.currentRot = pNpc->GetRotation();
-		//	syncPkt.axis = pNpc->GetAxis();
-
-		//	//syncPkt.isMoving = pNpc->GetIsMoving();
-		//	//syncPkt.currentSpeed = pNpc->GetCurrentSpeed();
-		//	//SendToAllUser(syncPkt.PacketLength, (char*)&syncPkt, pNpc->GetNetConnIdx(), false);
-		//	for (auto pTarget : mUserList)
-		//	{
-		//		if (pTarget)
-		//		{
-		//			SendPacketFunc((UINT32)pTarget->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
-		//		}
-		//	}
-		//}
+		mGimmickManager.UpdateGimmicks(dt, this);
 
 		if (mCountdownTimer > 0) 
 		{
@@ -825,157 +672,10 @@ public:
 		}
 	}
 
-	void LoadMapData(const std::string& mapFilePath)
-	{
-		FILE* fp = fopen(mapFilePath.c_str(), "rb");
-		if (fp == nullptr)
-		{
-			printf("[Error] 맵 JSON 파일을 찾을 수 없습니다: %s\n", mapFilePath.c_str());
-			return;
-		}
-
-		// RapidJSON
-		char readBuffer[65536];
-		rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
-		rapidjson::Document doc;
-		doc.ParseStream(is);
-		fclose(fp);
-
-		if (doc.HasParseError() || !doc.IsObject())
-		{
-			printf("[Error] JSON 파싱 실패.\n");
-			return;
-		}
-
-		// gimmicks 파싱
-		if (doc.HasMember("gimmicks") && doc["gimmicks"].IsArray())
-		{
-			const rapidjson::Value& gimmicksArray = doc["gimmicks"];
-
-			for (rapidjson::SizeType i = 0; i < gimmicksArray.Size(); i++)
-			{
-				const rapidjson::Value& g = gimmicksArray[i];
-				ServerGimmickData data;
-
-				// 초기값 세팅
-				data.currentState = 0;
-				data.startPos = { 0,0,0 };
-				data.endPos = { 0,0,0 };
-
-				// ID 파싱
-				if (g.HasMember("gimmick_id") && g["gimmick_id"].IsInt()) 
-				{
-					data.gimmickID = g["gimmick_id"].GetInt();
-				}
-
-				// Type 파싱 (String -> Enum)
-				if (g.HasMember("type") && g["type"].IsString()) {
-					data.type = ConvertGimmickTypeToEnum(g["type"].GetString());
-				}
-
-				// Position 파싱 (_Vector3 객체)
-				if (g.HasMember("position") && g["position"].IsObject()) 
-				{
-					const auto& pos = g["position"];
-					data.position.x = pos.HasMember("x") ? pos["x"].GetFloat() : 0.0f;
-					data.position.y = pos.HasMember("y") ? pos["y"].GetFloat() : 0.0f;
-					data.position.z = pos.HasMember("z") ? pos["z"].GetFloat() : 0.0f;
-				}
-
-				// StartPos 파싱 (있는 경우에만)
-				if (g.HasMember("start_pos") && g["start_pos"].IsObject()) 
-				{
-					const auto& spos = g["start_pos"];
-					data.startPos.x = spos.HasMember("x") ? spos["x"].GetFloat() : 0.0f;
-					data.startPos.y = spos.HasMember("y") ? spos["y"].GetFloat() : 0.0f;
-					data.startPos.z = spos.HasMember("z") ? spos["z"].GetFloat() : 0.0f;
-				}
-
-				// EndPos 파싱 (있는 경우에만)
-				if (g.HasMember("end_pos") && g["end_pos"].IsObject()) 
-				{
-					const auto& epos = g["end_pos"];
-					data.endPos.x = epos.HasMember("x") ? epos["x"].GetFloat() : 0.0f;
-					data.endPos.y = epos.HasMember("y") ? epos["y"].GetFloat() : 0.0f;
-					data.endPos.z = epos.HasMember("z") ? epos["z"].GetFloat() : 0.0f;
-				}
-
-				// Properties 파싱
-				if (g.HasMember("properties") && g["properties"].IsObject()) 
-				{
-					for (auto it = g["properties"].MemberBegin(); it != g["properties"].MemberEnd(); ++it) 
-					{
-						if (it->value.IsNumber()) 
-						{
-							data.properties[it->name.GetString()] = it->value.GetFloat();
-						}
-					}
-				}
-
-				// 맵에 최종 등록
-				mGimmicks[data.gimmickID] = data;
-			}
-		}
-
-		printf("[Room %d] 맵 데이터 로딩 완료! 총 기믹 수: %zu개\n", mRoomNum, mGimmicks.size());
-	}
 
 	void ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT_REQUEST_PACKET* pReq)
 	{
-		std::lock_guard<std::recursive_mutex> guard(mLock);
-
-		auto it = mGimmicks.find(pReq->gimmickID);
-		if (it == mGimmicks.end())
-		{
-			printf("[Warning] 존재하지 않는 기믹 ID(%d) 조작 요청!\n", pReq->gimmickID);
-			return;
-		}
-
-		if (pReq->state != (byte)eGimmickState::Sync && it->second.currentState == pReq->state)
-		{
-			if (pReq->gimmickKey == 1)
-			{
-				printf("[Room Gimmick] Breakwall Exception\n");
-			}
-			else
-			{
-				// 벽 부수기가 아닌 다른 기믹들은 정상적으로 중복 요청을 무시함
-				return;
-			}
-		}
-
-		it->second.currentState = pReq->state;
-
-		if (it->second.type == (int)eGimmickKey::FallingPlatform && pReq->state == 1)
-		{
-			it->second.gimmickRecoverTime = 7.0f;
-		}
-
-		PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
-		ntfPkt.activeUUID = pReq->activeUUID;
-		ntfPkt.gimmickID = pReq->gimmickID;
-		ntfPkt.gimmickKey = pReq->gimmickKey;
-		ntfPkt.state = pReq->state;
-		ntfPkt.param = pReq->param;
-
-		if (ntfPkt.gimmickKey == eGimmickKey::MovePlatform)
-		{
-			if (pReq->state == (byte)eGimmickState::Sync)
-			{
-				ntfPkt.targetPos = pReq->targetPos;
-			}
-			else
-			{
-				ntfPkt.targetPos = { it->second.position.x, it->second.position.y, it->second.position.z };
-			}
-
-			BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
-			//BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, pReq->targetPos, 30.0f);
-		}
-		else
-		{
-			BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
-		}
+		mGimmickManager.ProcessGimmickInteract(pUser, pReq, this);
 	}
 
 	void BroadcastPacketInRange(int len, char* pkt, Vector3 center, float range)
@@ -1044,18 +744,3 @@ private:
 	float mCountdownTimer = -1.0f; // -1이면 카운트다운 중 아님
 	int mLastAnnouncedSecond = 0;
 };
-
-void CopyUserID(char* userID, const Actor& user)
-{
-	CopyUserID(userID, user.GetUserId());
-}
-
-void CopyUserID(char* userID, const std::string& userID_)
-{
-	CopyMemory(userID, userID_.c_str(), userID_.size() + 1);
-}
-
-void CopyUserID(char* userID, const char* userID_)
-{
-	CopyMemory(userID, userID_, (MAX_USER_ID_LEN + 1));
-}

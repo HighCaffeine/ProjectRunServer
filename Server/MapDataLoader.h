@@ -3,6 +3,7 @@
 #include "Mapdata.h"
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <rapidjson\document.h>
 #include <rapidjson\istreamwrapper.h>
 
@@ -16,12 +17,19 @@ public:
 
 	static bool LoadMapFromJson(const std::string& path, MapExportData& outData)
 	{
-		std::ifstream ifs(path);
+		std::ifstream ifs(path, std::ios::ate | std::ios::binary);
 		if (!ifs.is_open()) return false;
 
-		rapidjson::IStreamWrapper isw(ifs);
+		size_t fileSize = (size_t)ifs.tellg();
+		ifs.seekg(0, std::ios::beg);
+
+		std::vector<char> buffer(fileSize + 1);
+		ifs.read(buffer.data(), fileSize);
+		buffer[fileSize] = '\0';
+
+		// In-situ ÆÄ½Ì
 		rapidjson::Document doc;
-		doc.ParseStream(isw);
+		doc.ParseInsitu(buffer.data());
 
 		if (doc.HasParseError()) return false;
 
@@ -104,7 +112,6 @@ public:
 				outData.gimmicks.push_back(gd);
 			}
 		}
-
 		return true;
 	}
 };
