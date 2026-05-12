@@ -14,6 +14,9 @@
 #include <algorithm>
 #include <chrono>
 
+#include "Actor.h"
+
+
 class RedisManager
 {
 public:

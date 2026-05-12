@@ -37,7 +37,7 @@ public:
 
 	virtual void OnReceive(const UINT32 clientIndex_, const UINT32 size_, char* pData_) override  
 	{
-		printf("[OnReceive] 클라이언트: Index(%d), dataSize(%d)\n", clientIndex_, size_);
+		//printf("[OnReceive] 클라이언트: Index(%d), dataSize(%d)\n", clientIndex_, size_);
 
 		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
 	}

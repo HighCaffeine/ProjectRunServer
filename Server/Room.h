@@ -9,20 +9,6 @@
 
 #include <functional>
 
-inline void CopyUserID(char* userID, const char* userID_)
-{
-	CopyMemory(userID, userID_, (MAX_USER_ID_LEN + 1));
-}
-
-inline void CopyUserID(char* userID, const std::string& userID_)
-{
-	CopyMemory(userID, userID_.c_str(), userID_.size() + 1);
-}
-
-inline void CopyUserID(char* userID, const Actor& user)
-{
-	CopyUserID(userID, user.GetUserId());
-}
 
 class Room
 {
@@ -373,56 +359,57 @@ public:
 		}
 
 		// AOI 관리
-		for (auto pViewer : mUserList) // pViewer: 나
-		{
-			if (pViewer == nullptr) continue;
+		//for (auto pViewer : mUserList) // pViewer: 나
+		//{
+		//	if (pViewer == nullptr) continue;
 
-			for (auto pTarget : mUserList) // pTarget: 상대방
-			{
-				if (pTarget == nullptr || pViewer == pTarget) continue;
+		//	for (auto pTarget : mUserList) // pTarget: 상대방
+		//	{
+		//		if (pTarget == nullptr || pViewer == pTarget) continue;
 
-				// 실제 거리 계산
-				Vector3 viewerPos = pViewer->GetPosition();
-				Vector3 targetPos = pTarget->GetPosition();
-				float dx = viewerPos.x - targetPos.x;
-				float dz = viewerPos.z - targetPos.z;
-				float distSq = (dx * dx) + (dz * dz);
+		//		// 실제 거리 계산
+		//		Vector3 viewerPos = pViewer->GetPosition();
+		//		Vector3 targetPos = pTarget->GetPosition();
+		//		float dx = viewerPos.x - targetPos.x;
+		//		float dz = viewerPos.z - targetPos.z;
+		//		float distSq = (dx * dx) + (dz * dz);
 
-				bool wasVisible = (pViewer->mVisibleList.find(pTarget->GetNetConnIdx()) != pViewer->mVisibleList.end());
-				bool canSee = CanSee(pViewer, pTarget);
+		//		bool wasVisible = (pViewer->mVisibleList.find(pTarget->GetNetConnIdx()) != pViewer->mVisibleList.end());
+		//		//bool canSee = CanSee(pViewer, pTarget);
+		//		bool canSee = true;
 
-				// 안 보이다가 -> 6.0m 안으로 들어옴 (Enter)
-				if (!wasVisible)
-				{
-					if (distSq <= ENTER_RANGE && CanSee(pViewer, pTarget))
-					{
-						pViewer->mVisibleList.insert(pTarget->GetNetConnIdx());
+		//		// 안 보이다가 -> 6.0m 안으로 들어옴 (Enter)
+		//		if (!wasVisible)
+		//		{
+		//			if (distSq <= ENTER_RANGE && CanSee(pViewer, pTarget))
+		//			{
+		//				pViewer->mVisibleList.insert(pTarget->GetNetConnIdx());
 
-						ROOM_USER_INFO_NTF_PACKET infoPkt;
-						infoPkt.userUUID = pTarget->GetNetConnIdx();
-						CopyUserID(infoPkt.userID, *pTarget);
-						infoPkt.position = pTarget->GetPosition();
-						infoPkt.rotation = pTarget->GetRotation();
+		//				ROOM_USER_INFO_NTF_PACKET infoPkt;
+		//				infoPkt.userUUID = pTarget->GetNetConnIdx();
+		//				CopyUserID(infoPkt.userID, *pTarget);
+		//				infoPkt.position = pTarget->GetPosition();
+		//				infoPkt.rotation = pTarget->GetRotation();
 
-						SendPacketFunc(pViewer->GetNetConnIdx(), infoPkt.PacketLength, (char*)&infoPkt);
-					}
-				}
-				// 보이다가 -> 7.5m 밖으로 나감 (Leave) / 부쉬에 들어가서 안보임
-				else
-				{
-					if (distSq > LEAVE_RANGE || !canSee)
-					{
-						pViewer->mVisibleList.erase(pTarget->GetNetConnIdx());
+		//				SendPacketFunc(pViewer->GetNetConnIdx(), infoPkt.PacketLength, (char*)&infoPkt);
+		//			}
+		//		}
+		//		// 보이다가 -> 7.5m 밖으로 나감 (Leave) / 부쉬에 들어가서 안보임
+		//		else
+		//		{
+		//			if (distSq > LEAVE_RANGE || !canSee)
+		//			{
+		//				pViewer->mVisibleList.erase(pTarget->GetNetConnIdx());
 
-						ROOM_LEAVE_USER_NTF_PACKET leavePkt;
-						leavePkt.userUUID = pTarget->GetNetConnIdx();
-						CopyUserID(leavePkt.userID, *pTarget);
+		//				ROOM_LEAVE_USER_NTF_PACKET leavePkt;
+		//				leavePkt.userUUID = pTarget->GetNetConnIdx();
+		//				CopyUserID(leavePkt.userID, *pTarget);
 
-						SendPacketFunc(pViewer->GetNetConnIdx(), leavePkt.PacketLength, (char*)&leavePkt);
-					}
-				}
-			}
-		}
+		//				SendPacketFunc(pViewer->GetNetConnIdx(), leavePkt.PacketLength, (char*)&leavePkt);
+		//			}
+		//		}
+		//	}
+		//}
 
 		// 이동 동기화 패킷 전송
 		for (auto pMover : mUserList)
@@ -457,12 +444,12 @@ public:
 				syncPkt.axisV = pMover->GetAxis().y;
 				syncPkt.isMoving = (syncPkt.axisH != 0 || syncPkt.axisV != 0);
 
-				for (auto targetIdx : pMover->mVisibleList)
+				/*for (auto targetIdx : pMover->mVisibleList)
 				{
 					SendPacketFunc((UINT32)targetIdx, syncPkt.PacketLength, (char*)&syncPkt);
 				}
-				SendPacketFunc((UINT32)pMover->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);
-
+				SendPacketFunc((UINT32)pMover->GetNetConnIdx(), syncPkt.PacketLength, (char*)&syncPkt);*/
+				BroadcastPacket(syncPkt.PacketLength, (char*)&syncPkt);
 				// 갱신
 				pMover->mLastSentPos = curPos;
 				pMover->mLastSentRot = curRot;
@@ -492,7 +479,8 @@ public:
 			if (moveDistSq > 0.0001f || rotDiffSq > 0.0001f || pNpc->mIsDirty)
 			{
 				UPDATE_PLAYER_MOVEMENT_PACKET syncPkt;
-				syncPkt.lastInputSeq = pNpc->GetLastInputSeq();
+				syncPkt.lastInputSeq = 0;
+				//syncPkt.lastInputSeq = pNpc->GetLastInputSeq();
 				syncPkt.userUUID = pNpc->GetNetConnIdx();
 				syncPkt.currentPos = curPos;
 				syncPkt.currentRot = pNpc->GetRotation();
@@ -506,6 +494,7 @@ public:
 				}
 
 				pNpc->mLastSentPos = curPos;
+				pNpc->mLastSentRot = curRot; 
 				pNpc->mIsDirty = false;
 			}
 		}
@@ -569,6 +558,7 @@ public:
 	void CheckAllReady() 
 	{
 		if (mCurrentUserCount == 0) return;
+		if (mCurrentUserCount < mMaxUserCount) return;
 
 		bool allReady = true;
 		for (int i = 0; i < mMaxUserCount; ++i) 

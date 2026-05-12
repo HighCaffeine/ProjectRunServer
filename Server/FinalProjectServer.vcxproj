@@ -166,6 +166,7 @@
     <ClInclude Include="GameServer.h" />
     <ClInclude Include="GimmickData.h" />
     <ClInclude Include="GimmickManager.h" />
+    <ClInclude Include="LobbyManager.h" />
     <ClInclude Include="LogManager.h" />
     <ClInclude Include="Mapdata.h" />
     <ClInclude Include="MapDataLoader.h" />

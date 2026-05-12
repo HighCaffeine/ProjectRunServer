@@ -8,6 +8,9 @@
 #include "user.h"
 #include "unity.h"
 
+#include "rapidjson/document.h"
+#include "rapidjson/filereadstream.h"
+
 class Room;
 
 class GimmickManager

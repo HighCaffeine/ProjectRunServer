@@ -10,7 +10,7 @@
 
 class User: public Actor
 {
-	const UINT32 PACKET_DATA_BUFFER_SIZE = 8096;
+	const UINT32 PACKET_DATA_BUFFER_SIZE = 65536;
 
 public:
 
@@ -42,15 +42,21 @@ public:
 
 			if (remainDataSize > 0)
 			{
-				CopyMemory(&mPacketDataBuffer[0], &mPacketDataBuffer[mPacketDataBufferRPos], remainDataSize);
+				memmove(&mPacketDataBuffer[0], &mPacketDataBuffer[mPacketDataBufferRPos], remainDataSize);
 				mPacketDataBufferWPos = remainDataSize;
+				mPacketDataBufferRPos = 0;
 			}
 			else
 			{
 				mPacketDataBufferWPos = 0;
+				mPacketDataBufferRPos = 0;
 			}
+		}
 
-			mPacketDataBufferRPos = 0;
+		if ((mPacketDataBufferWPos + dataSize_) > PACKET_DATA_BUFFER_SIZE)
+		{
+			printf("[Critical Error] Packet Buffer Overflow! Dropping Data.\\n");
+			return; 
 		}
 
 		CopyMemory(&mPacketDataBuffer[mPacketDataBufferWPos], pData_, dataSize_);
@@ -69,6 +75,14 @@ public:
 		}
 
 		auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferRPos];
+
+		if (pHeader->PacketLength < PACKET_HEADER_LENGTH || pHeader->PacketLength > 2048)
+		{
+			printf("[Critical] TCP Stream Corrupted! (Length: %d). Clearing Buffer.\n", pHeader->PacketLength);
+			mPacketDataBufferWPos = 0;
+			mPacketDataBufferRPos = 0;
+			return PacketInfo();
+		}
 
 		if (pHeader->PacketLength > remainByte)
 		{

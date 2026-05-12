@@ -101,47 +101,38 @@ void GimmickManager::LoadMapData(const std::string& path, INT32 mapNum)
 
 void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT_REQUEST_PACKET* pReq, Room* pRoom)
 {
-	std::lock_guard<std::recursive_mutex> guard(mGimmickLock);
-
-	auto it = mGimmicks.find(pReq->gimmickID);
-	if (it == mGimmicks.end())
-	{
-		printf("[Warning] 존재하지 않는 기믹 ID(%d) 조작 요청!\n", pReq->gimmickID);
-		return;
-	}
-
-	// 중복 요청 무시 로직
-	if (pReq->state != (UINT8)eGimmickState::Sync && it->second.currentState == pReq->state)
-	{
-		if (pReq->gimmickKey != 1) return;
-	}
-
-	it->second.currentState = pReq->state;
-
-	// 추락 발판 복구 타이머 세팅
-	if (it->second.type == (int)eGimmickKey::FallingPlatform && pReq->state == 1)
-	{
-		it->second.gimmickRecoverTime = 7.0f;
-	}
-
 	PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
-	ntfPkt.activeUUID = pReq->activeUUID;
-	ntfPkt.gimmickID = pReq->gimmickID;
-	ntfPkt.gimmickKey = pReq->gimmickKey;
-	ntfPkt.state = pReq->state;
-	ntfPkt.param = pReq->param;
 
-	if (ntfPkt.gimmickKey == eGimmickKey::MovePlatform)
 	{
-		ntfPkt.targetPos = (pReq->state == (UINT8)eGimmickState::Sync) ? pReq->targetPos : it->second.position;
-	}
-	else
-	{
-		ntfPkt.targetPos = it->second.position; // 기본 위치
+		std::lock_guard<std::recursive_mutex> guard(mGimmickLock);
+
+		auto it = mGimmicks.find(pReq->gimmickID);
+		if (it == mGimmicks.end())
+		{
+			return;
+		}
+
+		it->second.currentState = pReq->state;
+
+		ntfPkt.gimmickID = pReq->gimmickID;
+		ntfPkt.gimmickKey = pReq->gimmickKey;
+		ntfPkt.state = pReq->state;
+		ntfPkt.param = pReq->param;
+
+		if (ntfPkt.gimmickKey == eGimmickKey::MovePlatform)
+		{
+			ntfPkt.targetPos = (pReq->state == (UINT8)eGimmickState::Sync) ? pReq->targetPos : it->second.position;
+		}
+		else
+		{
+			ntfPkt.targetPos = it->second.position;
+		}
 	}
 
-	// Room의 브로드캐스트 함수 호출
-	pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+	if (pRoom != nullptr)
+	{
+		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+	}
 }
 
 void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)

@@ -2,7 +2,22 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <iostream>
 #include "unity.h"
+
+
+const int MAX_USER_ID_LEN = 32;
+const int MAX_USER_PW_LEN = 32;
+
+inline void CopyUserID(char* userID, const char* userID_)
+{
+	CopyMemory(userID, userID_, (MAX_USER_ID_LEN + 1));
+}
+
+inline void CopyUserID(char* userID, const std::string& userID_)
+{
+	CopyMemory(userID, userID_.c_str(), userID_.size() + 1);
+}
 
 struct PacketInfo
 {
@@ -112,9 +127,6 @@ const UINT32 PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
 #pragma endregion
 
 #pragma region Login Packets
-const int MAX_USER_ID_LEN = 32;
-const int MAX_USER_PW_LEN = 32;
-
 struct LOGIN_REQUEST_PACKET : public PACKET_HEADER
 {
 	char userID[MAX_USER_ID_LEN + 1];

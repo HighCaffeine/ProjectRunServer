@@ -20,6 +20,7 @@ class Room;
 class UserManager;
 class RoomManager;
 class RedisManager;
+class LobbyManager;
 
 Vector3 stringToVector3(const std::string& s);
 
@@ -99,19 +100,6 @@ private:
 	//인벤처리
 	void ProcessInventoryDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
-	//거래처리
-	void ProcessTradeRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessTradeResponse(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessTradeItemUpdate(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessTradeLock(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessTradeConfirm(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessTradeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
-	//상점처리
-	void ProcessShopUpdateDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessShopBuyRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	void ProcessShopBuyDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT16, char*);
 	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION> mRecvFuntionDictionary;
 
@@ -124,6 +112,24 @@ private:
 	SOCKET mUdpSocket = INVALID_SOCKET;
 	std::thread mUdpRecvThread;
 	void UDPRecvThread(); // UDP 패킷 수신 전용 함수
+
+	void ProcessTradeRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessTradeResponse(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessTradeItemUpdate(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessTradeLock(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessTradeConfirm(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessTradeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessShopBuyRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessShopBuyDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	void ProcessShopUpdateDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	// UDP 주소로 유저를 찾기 위한 맵 
 	std::mutex mUdpMapLock;
@@ -142,7 +148,8 @@ private:
 	UserManager* mUserManager;
 	RoomManager* mRoomManager;	
 	RedisManager* mRedisMgr;
-		
+	LobbyManager* mLobbyManager;
+
 	std::function<void(int, char*)> mSendMQDataFunc;
 	bool mIsRunProcessThread = false;
 	
@@ -152,20 +159,6 @@ private:
 	std::deque<PacketInfo> mSystemPacketQueue;
 
 
-	//Shop
-	int mCurrentShopItemID = 101;
-	INT64 mNextShopUpdateTime = 0;
 
-#pragma region Trade session
-	struct TradeSession
-	{
-		int userA, userB;	//A B의 id
-		bool isLockA = false, isLockB = false;	//lock상태
-		bool isConfirmA = false, isConfirmB = false;	//confirm상태
-		std::vector<int> itemsA, itemsB;	//올린 아이템들
-		std::vector<int> itemsASlot, itemsBSlot;
-	};
-	TradeSession curTS;
-#pragma endregion
 };
 

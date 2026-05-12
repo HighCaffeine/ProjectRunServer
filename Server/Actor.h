@@ -405,6 +405,7 @@ public:
 	Quaternion mLastSentRot = { 0, 0, 0, 1.0f };
 	bool mIsDirty = true; // 마지막으로 패킷 보낸 위치
 
+	
 private:
 
 
@@ -438,3 +439,7 @@ private:
 
 };
 
+inline void CopyUserID(char* userID, const Actor& user)
+{
+	CopyUserID(userID, user.GetUserId());
+}
