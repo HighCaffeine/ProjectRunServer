@@ -27,7 +27,8 @@ enum eGimmickKey : UINT8
     MovePlatform = 8,
     Wind = 9,
     NextZone = 10,
-    Gimmick_Count = 11
+    Checkpoint = 11,
+    Gimmick_Count = 12
 };
 
 enum eGimmickState : UINT8
