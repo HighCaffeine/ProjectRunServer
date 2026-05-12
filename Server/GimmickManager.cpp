@@ -114,6 +114,15 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 
 		it->second.currentState = pReq->state;
 
+		if (it->second.type == (int)eGimmickKey::FallingPlatform && pReq->state == 1)
+		{
+			if (it->second.gimmickRecoverTime <= 0.0f)
+			{
+				it->second.gimmickRecoverTime = 7.0f;
+			}
+		}
+
+		ntfPkt.activeUUID = pReq->activeUUID;
 		ntfPkt.gimmickID = pReq->gimmickID;
 		ntfPkt.gimmickKey = pReq->gimmickKey;
 		ntfPkt.state = pReq->state;
@@ -162,8 +171,8 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					ntfPkt.param = 0.0f;
 					ntfPkt.targetPos = { gimmick.position.x, gimmick.position.y, gimmick.position.z };
 
-					// pRoom->BroadcastPacketInRange(...) 등을 호출
-					pRoom->BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, ntfPkt.targetPos, 40.0f);
+					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+					//pRoom->BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, ntfPkt.targetPos, 40.0f);
 				}
 			}
 		}
