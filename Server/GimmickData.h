@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "rapidjson/document.h"
 #include "rapidjson/filereadstream.h"
 #include "unity.h"
@@ -25,6 +26,23 @@ struct ServerGimmickData
 
     // Gimmick의 복구 시간 검사
     float gimmickRecoverTime;
+
+    int hp = 1;
+    int weight = 1;
+    bool isBombOnly = false;
+
+    int activationType = 0;   // 0 = 상시(기존), 1 = 트리거(밟음)
+    float waitTime = 0.0f;    // 1초 등 대기 시간
+
+    bool isMoveTriggered = false;
+    float moveDelayTimer = 0.0f;
+
+    bool isInteracting = false;             // 누군가 밀기 시작했는지 여부
+    float interactWindowTimer = 0.0f;       // 추가 입력을 기다리는 시간 (예: 0.2초)
+    std::vector<uint64_t> interactorUUIDs;  // 0.2초 안에 같이 민 유저들의 ID 목록
+    float totalDirX = 0.0f;                 // 합산된 방향 X
+    float totalDirZ = 0.0f;                 // 합산된 방향 Z
+    float baseForce = 0.0f;                 // 기본으로 가해진 힘
 };
 
 inline UINT8 ConvertGimmickTypeToEnum(const std::string& typeStr)
@@ -38,6 +56,8 @@ inline UINT8 ConvertGimmickTypeToEnum(const std::string& typeStr)
     if (typeStr == "MovePlatform") return (UINT8)eGimmickKey::MovePlatform;
     if (typeStr == "Wind") return (UINT8)eGimmickKey::Wind;
     if (typeStr == "NextZone") return (UINT8)eGimmickKey::NextZone;
+    if (typeStr == "Checkpoint") return (UINT8)eGimmickKey::Checkpoint;
+    if (typeStr == "BreakableObj") return (UINT8)eGimmickKey::BreakableObj;
 
     return (UINT8)eGimmickKey::Gimmick_NONE;
 }

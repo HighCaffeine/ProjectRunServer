@@ -89,6 +89,25 @@ void GimmickManager::LoadMapData(const std::string& path, INT32 mapNum)
 						data.properties[it->name.GetString()] = it->value.GetFloat();
 					}
 				}
+
+				if (data.properties.find("HP") != data.properties.end())
+				{
+					data.hp = (int)data.properties["HP"];
+				}
+
+				if (data.properties.find("Weight") != data.properties.end())
+				{
+					data.weight = (int)data.properties["Weight"];
+				}
+
+				if (data.properties.find("ActivationType") != data.properties.end())
+				{
+					data.activationType = (int)data.properties["ActivationType"];
+				}
+				if (data.properties.find("WaitTime") != data.properties.end())
+				{
+					data.waitTime = data.properties["WaitTime"];
+				}
 			}
 
 			// 맵에 최종 등록
@@ -102,6 +121,7 @@ void GimmickManager::LoadMapData(const std::string& path, INT32 mapNum)
 void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT_REQUEST_PACKET* pReq, Room* pRoom)
 {
 	PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+	bool shouldBroadcastNow = true;
 
 	{
 		std::lock_guard<std::recursive_mutex> guard(mGimmickLock);
@@ -111,6 +131,9 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 		{
 			return;
 		}
+
+		ServerGimmickData& gimmick = it->second;
+		if (gimmick.hp <= 0) return;
 
 		it->second.currentState = pReq->state;
 
@@ -122,23 +145,58 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 			}
 		}
 
-		ntfPkt.activeUUID = pReq->activeUUID;
-		ntfPkt.gimmickID = pReq->gimmickID;
-		ntfPkt.gimmickKey = pReq->gimmickKey;
-		ntfPkt.state = pReq->state;
-		ntfPkt.param = pReq->param;
-
-		if (ntfPkt.gimmickKey == eGimmickKey::MovePlatform)
+		if (gimmick.type == (int)eGimmickKey::MovePlatform)
 		{
-			ntfPkt.targetPos = (pReq->state == (UINT8)eGimmickState::Sync) ? pReq->targetPos : it->second.position;
+			if (gimmick.activationType == 1 && pReq->state == 1)
+			{
+				if (!gimmick.isMoveTriggered)
+				{
+					gimmick.isMoveTriggered = true;
+					gimmick.moveDelayTimer = gimmick.waitTime > 0.0f ? gimmick.waitTime : 1.0f;
+					gimmick.currentState = 1;
+				}
+				shouldBroadcastNow = false;
+			}
 		}
-		else
+
+		if (pReq->state == 3) 
 		{
-			ntfPkt.targetPos = it->second.position;
+			// 중복 참여 체크
+			bool alreadyIn = false;
+			for (uint64_t uuid : gimmick.interactorUUIDs) 
+			{
+				if (uuid == pReq->activeUUID) alreadyIn = true;
+			}
+
+			if (!alreadyIn) 
+			{
+				if (!gimmick.isInteracting) 
+				{
+					gimmick.isInteracting = true;
+					gimmick.interactWindowTimer = 0.2f; // 0.2초 동안 다른 유저 입력 대기
+					gimmick.baseForce = pReq->param;
+				}
+				gimmick.interactorUUIDs.push_back(pReq->activeUUID);
+
+				// 클라에서 보낸 targetPos 합산
+				gimmick.totalDirX += pReq->targetPos.x;
+				gimmick.totalDirZ += pReq->targetPos.z;
+			}
+			shouldBroadcastNow = false;
+		}
+		else 
+		{
+			// state가 3이 아닐 때만 브로드캐스트 패킷 세팅
+			ntfPkt.activeUUID = pReq->activeUUID;
+			ntfPkt.gimmickID = pReq->gimmickID;
+			ntfPkt.gimmickKey = pReq->gimmickKey;
+			ntfPkt.state = pReq->state;
+			ntfPkt.param = pReq->param;
+			ntfPkt.targetPos = (pReq->state == (UINT8)eGimmickState::Sync) ? pReq->targetPos : gimmick.position;
 		}
 	}
 
-	if (pRoom != nullptr)
+	if (shouldBroadcastNow && pRoom != nullptr)
 	{
 		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 	}
@@ -174,6 +232,78 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 					//pRoom->BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, ntfPkt.targetPos, 40.0f);
 				}
+			}
+		}
+
+		if (gimmick.type == (int)eGimmickKey::MovePlatform && gimmick.activationType == 1 && gimmick.isMoveTriggered)
+		{
+			gimmick.moveDelayTimer -= dt;
+			if (gimmick.moveDelayTimer <= 0.0f)
+			{
+				gimmick.isMoveTriggered = false;
+				gimmick.currentState = 2; // Sync(이동) 상태로 변경
+
+				PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+				ntfPkt.activeUUID = -1;
+				ntfPkt.gimmickID = gimmick.gimmickID;
+				ntfPkt.gimmickKey = gimmick.type;
+				ntfPkt.state = 2; // 이동 시작 명령
+				ntfPkt.targetPos = gimmick.endPos; // 클라에게 도착지점 쏴줌
+
+				pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+			}
+		}
+
+		if (gimmick.isInteracting)
+		{
+			gimmick.interactWindowTimer -= dt;
+			if (gimmick.interactWindowTimer <= 0.0f)
+			{
+				int playerCount = gimmick.interactorUUIDs.size();
+				float finalForce = gimmick.baseForce;
+
+				// 무게 처리
+				if (gimmick.weight == 2 && playerCount < 2) 
+				{
+					finalForce = 0.0f; // 혼자 밀면 0
+				}
+				else if (playerCount >= 2) 
+				{
+					finalForce *= 1.5f; // 두 명이 밀면 1.5배
+				}
+
+				// 데미지 처리 (밀었을 때)
+				if (finalForce > 0.0f && !gimmick.isBombOnly) 
+				{
+					gimmick.hp -= 1;
+				}
+
+				PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+				ntfPkt.activeUUID = -1;
+				ntfPkt.gimmickID = gimmick.gimmickID;
+				ntfPkt.gimmickKey = gimmick.type;
+
+				if (gimmick.hp <= 0) 
+				{
+					ntfPkt.state = 99; // 파괴 상태
+				}
+				else 
+				{
+					ntfPkt.state = 3;
+					ntfPkt.targetPos.x = gimmick.totalDirX * finalForce;
+					ntfPkt.targetPos.y = gimmick.position.y;
+					ntfPkt.targetPos.z = gimmick.totalDirZ * finalForce;
+
+					// 기믹 서버 좌표 최신화
+					gimmick.position = ntfPkt.targetPos;
+				}
+
+				pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+
+				gimmick.isInteracting = false;
+				gimmick.interactorUUIDs.clear();
+				gimmick.totalDirX = 0.0f;
+				gimmick.totalDirZ = 0.0f;
 			}
 		}
 	}
