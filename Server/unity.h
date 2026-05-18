@@ -29,7 +29,8 @@ enum eGimmickKey : UINT8
     NextZone = 10,
     Checkpoint = 11,
     BreakableObj = 12,
-    Gimmick_Count = 13
+    Bomb = 13,
+    Gimmick_Count = 14
 };
 
 enum eGimmickState : UINT8

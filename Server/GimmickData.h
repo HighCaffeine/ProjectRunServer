@@ -27,12 +27,14 @@ struct ServerGimmickData
     // Gimmick의 복구 시간 검사
     float gimmickRecoverTime;
 
+    //properties
     int hp = 1;
     int weight = 1;
     bool isBombOnly = false;
-
     int activationType = 0;   // 0 = 상시(기존), 1 = 트리거(밟음)
     float waitTime = 0.0f;    // 1초 등 대기 시간
+    int spawnGimmickKey;
+
 
     bool isMoveTriggered = false;
     float moveDelayTimer = 0.0f;
@@ -58,6 +60,7 @@ inline UINT8 ConvertGimmickTypeToEnum(const std::string& typeStr)
     if (typeStr == "NextZone") return (UINT8)eGimmickKey::NextZone;
     if (typeStr == "Checkpoint") return (UINT8)eGimmickKey::Checkpoint;
     if (typeStr == "BreakableObj") return (UINT8)eGimmickKey::BreakableObj;
+    if (typeStr == "Bomb") return (UINT8)eGimmickKey::Bomb;
 
     return (UINT8)eGimmickKey::Gimmick_NONE;
 }

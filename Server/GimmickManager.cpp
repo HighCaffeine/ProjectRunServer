@@ -108,6 +108,11 @@ void GimmickManager::LoadMapData(const std::string& path, INT32 mapNum)
 				{
 					data.waitTime = data.properties["WaitTime"];
 				}
+
+				if (data.properties.find("SpawnGimmickKey") != data.properties.end())
+				{
+					data.spawnGimmickKey = data.properties["SpawnGimmickKey"];
+				}
 			}
 
 			// 맵에 최종 등록
