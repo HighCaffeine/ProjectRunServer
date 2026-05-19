@@ -35,6 +35,10 @@ struct ServerGimmickData
     float waitTime = 0.0f;    // 1초 등 대기 시간
     int spawnGimmickKey;
 
+    //플랫폼 돌아가기위해 추가
+    bool isReturning = false;
+    float returnDelayTimer = 0.0f;
+
 
     bool isMoveTriggered = false;
     float moveDelayTimer = 0.0f;

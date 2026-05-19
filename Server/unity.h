@@ -38,7 +38,9 @@ enum eGimmickState : UINT8
     Off_Destroy = 0, // 꺼짐, 부서짐, 닫힘
     On_Activate = 1, // 켜짐, 작동, 열림
     Sync = 2,        // 지속적인 물리/좌표 동기화
-    Restore = 3      // 다시 초기 위치로 돌아가야 하는 상태
+    Restore = 3,     // 다시 초기 위치로 돌아가야 하는 상태
+    TriggerMove = 4,
+    GimmickPush = 5
 };
 
 enum eState : UINT8
