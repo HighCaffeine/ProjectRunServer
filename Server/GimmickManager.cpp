@@ -324,6 +324,7 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 				if (gimmick.hp <= 0) 
 				{
 					ntfPkt.state = 99; // ÆÄ±« »óÅÂ
+					gimmick.currentState = 99;
 				}
 				else 
 				{
