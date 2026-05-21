@@ -325,6 +325,11 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 				{
 					ntfPkt.state = 99; // ÆÄ±« »óÅÂ
 					gimmick.currentState = 99;
+
+					ntfPkt.param = 0.0f;
+					ntfPkt.targetPos.x = 0.0f;
+					ntfPkt.targetPos.y = 0.0f;
+					ntfPkt.targetPos.z = 0.0f;
 				}
 				else 
 				{
