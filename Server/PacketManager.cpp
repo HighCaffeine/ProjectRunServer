@@ -57,6 +57,12 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::TRADE_LOCK] = &PacketManager::ProcessTradeLock;
 	mRecvFuntionDictionary[(int)PACKET_ID::TRADE_CONFIRM] = &PacketManager::ProcessTradeConfirm;
 
+
+	//몬스터 패킷
+	mRecvFuntionDictionary[(int)PACKET_ID::MONSTER_DEAD_REQ] = &PacketManager::ProcessMonsterDeadRequest;
+	mRecvFuntionDictionary[(int)PACKET_ID::MONSTER_STATE_NTF] = &PacketManager::ProcessMonsterStateChange;
+	mRecvFuntionDictionary[(int)PACKET_ID::MONSTER_MOVEMENT] = &PacketManager::ProcessMonsterMovement;
+
 	CreateCompent(maxClient_);
 
 	mRedisMgr = new RedisManager;// std::make_unique<RedisManager>();
@@ -1112,7 +1118,14 @@ void PacketManager::UDPRecvThread()
 						clientIndex = (UINT32)pPkt->userUUID;
 						break;
 					}
+					case PACKET_ID::MONSTER_MOVEMENT:
+					{
+						auto pPkt = (MONSTER_MOVEMENT_PACKET*)buf;
+						clientIndex = (UINT32)pPkt->userUUID;
+						break;
+					}
 					// UDP로 추가되는 패킷은 여기에 case 추가
+					
 					default:
 						printf("[UDP] Unhandled Packet ID: %d, dropping.\n", pHeader->PacketId);
 						continue;
@@ -1174,6 +1187,53 @@ void PacketManager::ProcessShopBuyDBResult(UINT32 clientIndex_, UINT16 packetSiz
 void PacketManager::ProcessShopUpdateDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
 {
 	mLobbyManager->ProcessShopUpdateDBResult(clientIndex_, packetSize_, pPacket_);
+}
+
+void PacketManager::ProcessMonsterDeadRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pReq = (MONSTER_DEAD_REQ_PACKET*)pPacket_;
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		MONSTER_DEAD_NTF_PACKET pNtf;
+		pNtf.userUUID = pReq->userUUID;
+		pNtf.monsterID = pReq->monsterID;
+
+		pRoom->BroadcastPacket(pNtf.PacketLength, (char*)&pNtf);
+		printf("[State Sync] Monster %d Dead\n", clientIndex_, pReq->monsterID);
+	}
+}
+
+void PacketManager::ProcessMonsterStateChange(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pReq = (MONSTER_STATE_PACKET*)pPacket_;
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		pRoom->BroadcastPacket(pReq->PacketLength, pPacket_);
+		printf("[State Sync] Monster %d changed state to %d\n", clientIndex_, pReq->newState);
+	}
+}
+
+void PacketManager::ProcessMonsterMovement(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pReq = (MONSTER_MOVEMENT_PACKET*)pPacket_;
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		pRoom->BroadcastPacket(pReq->PacketLength, pPacket_);
+	}
 }
 
 Vector3 stringToVector3(const std::string& s) 

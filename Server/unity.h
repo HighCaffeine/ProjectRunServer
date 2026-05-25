@@ -42,6 +42,7 @@ enum eGimmickState : UINT8
     Restore = 3,     // 다시 초기 위치로 돌아가야 하는 상태
     TriggerMove = 4,
     GimmickPush = 5,
+    GimmickBomb = 6,
 };
 
 enum eState : UINT8

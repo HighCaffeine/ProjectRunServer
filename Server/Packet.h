@@ -593,6 +593,7 @@ struct TRADE_RESULT_PACKET : public PACKET_HEADER
 #pragma region Monster Sync Packet
 struct MONSTER_MOVEMENT_PACKET : public PACKET_HEADER
 {
+	INT64 userUUID;
 	int monsterID;
 	Vector3 currentPos;
 	Quaternion currentRot;
@@ -600,16 +601,29 @@ struct MONSTER_MOVEMENT_PACKET : public PACKET_HEADER
 	MONSTER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MONSTER_MOVEMENT) {}
 };
 
+struct MONSTER_STATE_PACKET : public PACKET_HEADER
+{
+	INT32 monsterID;
+	UINT8 newState;
+	Vector3 targetDir;
+	float param;
+	UINT8 isPull;
+	Vector3 casterPos;
+
+	MONSTER_STATE_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MONSTER_STATE_NTF) {}
+};
+
 struct MONSTER_DEAD_REQ_PACKET : public PACKET_HEADER
 {
+	INT64 userUUID;
 	int monsterID;
 	MONSTER_DEAD_REQ_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MONSTER_DEAD_REQ) {}
 };
 
 struct MONSTER_DEAD_NTF_PACKET : public PACKET_HEADER
 {
+	INT64 userUUID;
 	int monsterID;
-	Vector3 hitDirection;
 	MONSTER_DEAD_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MONSTER_DEAD_NTF) {}
 };
 #pragma endregion

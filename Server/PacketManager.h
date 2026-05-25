@@ -40,7 +40,7 @@ public:
 	void ReceivePacketData(const UINT32 clientIndex_, const UINT32 size_, char* pData_);
 
 	void PushSystemPacket(PacketInfo packet_);
-		
+
 	std::function<void(UINT32, UINT32, char*)> SendPacketFunc;
 
 	void RegisterSendFunction(std::function<void(UINT32, UINT32, char*)> sendFunc)
@@ -74,18 +74,18 @@ private:
 
 	void ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessUserDisConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	
+
 	void ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessNoticeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	
+
 	void ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessPlayerMovement(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessPlayerStateChange(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	void ProcessDungeonEscape(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-	
+
 	void ProcessSceneSync(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	void ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
@@ -131,6 +131,10 @@ private:
 
 	void ProcessShopUpdateDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
+	void ProcessMonsterDeadRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	void ProcessMonsterMovement(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	void ProcessMonsterStateChange(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
 	// UDP 주소로 유저를 찾기 위한 맵 
 	std::mutex mUdpMapLock;
 	std::map<std::string, UINT32> mUdpAddrToUserIdx;
@@ -146,13 +150,13 @@ private:
 
 
 	UserManager* mUserManager;
-	RoomManager* mRoomManager;	
+	RoomManager* mRoomManager;
 	RedisManager* mRedisMgr;
 	LobbyManager* mLobbyManager;
 
 	std::function<void(int, char*)> mSendMQDataFunc;
 	bool mIsRunProcessThread = false;
-	
+
 	std::thread mProcessThread;
 	std::mutex mLock;
 	std::deque<UINT32> mInComingPacketUserIndex;

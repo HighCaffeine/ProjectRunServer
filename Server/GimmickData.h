@@ -33,7 +33,9 @@ struct ServerGimmickData
     bool isBombOnly = false;
     int activationType = 0;   // 0 = 상시(기존), 1 = 트리거(밟음)
     float waitTime = 0.0f;    // 1초 등 대기 시간
-    int spawnGimmickKey;
+    float damage = 0.0f;
+    float moveSpeed = 0.0f;
+    int spawnGimmickKey = 0;
     int monsterType = 0;
     int assignMonsterID = 0;
 

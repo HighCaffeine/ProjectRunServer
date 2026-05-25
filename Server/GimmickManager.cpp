@@ -100,6 +100,16 @@ void GimmickManager::LoadMapData(const std::string& path, INT32 mapNum)
 					data.weight = (int)data.properties["Weight"];
 				}
 
+				if (data.properties.find("IsBombOnly") != data.properties.end())
+				{
+					data.isBombOnly = (data.properties["IsBombOnly"] > 0.0f);
+				}
+
+				if (data.properties.find("MoveSpeed") != data.properties.end())
+				{
+					data.moveSpeed = (data.properties["MoveSpeed"] > 0.0f);
+				}
+
 				if (data.properties.find("ActivationType") != data.properties.end())
 				{
 					data.activationType = (int)data.properties["ActivationType"];
@@ -122,6 +132,12 @@ void GimmickManager::LoadMapData(const std::string& path, INT32 mapNum)
 				{
 					data.activationType = (int)data.properties["AssignMonsterID"]; // 몬스터 ID 임시 저장
 				}
+
+				if (data.properties.find("Damage") != data.properties.end())
+				{
+					data.damage = data.properties["Damage"];
+				}
+
 			}
 
 			// 맵에 최종 등록
@@ -170,7 +186,7 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 		{
 			if (it->second.gimmickRecoverTime <= 0.0f)
 			{
-				it->second.gimmickRecoverTime = 7.0f;
+				it->second.gimmickRecoverTime = (gimmick.waitTime > 0.0f) ? gimmick.waitTime : 7.0f;
 			}
 		}
 
@@ -202,7 +218,7 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 				if (!gimmick.isInteracting) 
 				{
 					gimmick.isInteracting = true;
-					gimmick.interactWindowTimer = 0.2f; // 0.2초 동안 다른 유저 입력 대기
+					gimmick.interactWindowTimer = 0.5f;
 					gimmick.baseForce = pReq->param;
 				}
 				gimmick.interactorUUIDs.push_back(pReq->activeUUID);
@@ -266,51 +282,51 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 			}
 		}
 
-		if (gimmick.type == (int)eGimmickKey::MovePlatform && gimmick.activationType == 1 && gimmick.isMoveTriggered)
+		if (gimmick.type == (int)eGimmickKey::MovePlatform && gimmick.activationType == 1)
 		{
-			gimmick.moveDelayTimer -= dt;
-			
-
-			if (gimmick.type == (int)eGimmickKey::MovePlatform && gimmick.activationType == 1)
+			if (gimmick.isMoveTriggered)
 			{
-				if (gimmick.isMoveTriggered)
+				gimmick.moveDelayTimer -= dt;
+				if (gimmick.moveDelayTimer <= 0.0f)
 				{
-					gimmick.moveDelayTimer -= dt;
-					if (gimmick.moveDelayTimer <= 0.0f)
-					{
-						gimmick.isMoveTriggered = false;
+					gimmick.isMoveTriggered = false;
 
-						PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
-						ntfPkt.activeUUID = -1;
-						ntfPkt.gimmickID = gimmick.gimmickID;
-						ntfPkt.gimmickKey = gimmick.type;
-						ntfPkt.state = (UINT8)eGimmickState::TriggerMove;
-						ntfPkt.targetPos = gimmick.endPos;
-						ntfPkt.param = 0.0f;
-						pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+					PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+					ntfPkt.activeUUID = -1;
+					ntfPkt.gimmickID = gimmick.gimmickID;
+					ntfPkt.gimmickKey = gimmick.type;
+					ntfPkt.state = (UINT8)eGimmickState::TriggerMove;
+					ntfPkt.targetPos = gimmick.endPos;
+					ntfPkt.param = 0.0f;
+					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 
-						gimmick.isReturning = true;
-						gimmick.returnDelayTimer = 2.0f;
-					}
+					gimmick.isReturning = true;
+
+					float speed = gimmick.properties.count("MoveSpeed") ? gimmick.properties["MoveSpeed"] : 3.0f;
+					float dx = gimmick.endPos.x - gimmick.startPos.x;
+					float dy = gimmick.endPos.y - gimmick.startPos.y;
+					float dz = gimmick.endPos.z - gimmick.startPos.z;
+					float dist = sqrt(dx * dx + dy * dy + dz * dz);
+					float travelTime = (speed > 0.0f) ? (dist / speed) : 0.0f;
+
+					gimmick.returnDelayTimer = travelTime + gimmick.waitTime;
 				}
-
-				// isMoveTriggered와 분리해서 별도로 처리
-				if (gimmick.isReturning)
+			}
+			else if (gimmick.isReturning)
+			{
+				gimmick.returnDelayTimer -= dt;
+				if (gimmick.returnDelayTimer <= 0.0f)
 				{
-					gimmick.returnDelayTimer -= dt;
-					if (gimmick.returnDelayTimer <= 0.0f)
-					{
-						gimmick.isReturning = false;
+					gimmick.isReturning = false;
 
-						PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
-						ntfPkt.activeUUID = -1;
-						ntfPkt.gimmickID = gimmick.gimmickID;
-						ntfPkt.gimmickKey = gimmick.type;
-						ntfPkt.state = (UINT8)eGimmickState::Restore;
-						ntfPkt.targetPos = gimmick.startPos;
-						ntfPkt.param = 0.0f;
-						pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
-					}
+					PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+					ntfPkt.activeUUID = -1;
+					ntfPkt.gimmickID = gimmick.gimmickID;
+					ntfPkt.gimmickKey = gimmick.type;
+					ntfPkt.state = (UINT8)eGimmickState::Restore;
+					ntfPkt.targetPos = gimmick.startPos;
+					ntfPkt.param = 0.0f;
+					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 				}
 			}
 		}
@@ -332,12 +348,16 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 
 				uint64_t lastAttackerUUID = gimmick.interactorUUIDs.empty() ? 0 : gimmick.interactorUUIDs.back();
 
-				if (isBreakable && !gimmick.isBombOnly)
+				bool isExplosion = (finalForce >= 10.0f);
+
+				if (isBreakable)
 				{
-					// 일반 공격이면 데미지 1, 폭발 데미지(param이 10 이상)면 param만큼 깎음
-					int damageToTake = (finalForce >= 10.0f) ? (int)finalForce : 1;
-					gimmick.hp -= damageToTake;
-					printf("[GimmickManager] HP 감소 - GimmickID: %d, 남은 HP: %d\n", gimmick.gimmickID, gimmick.hp);
+					if (!gimmick.isBombOnly || isExplosion)
+					{
+						int damageToTake = isExplosion ? (int)finalForce : 1;
+						gimmick.hp -= damageToTake;
+						printf("[GimmickManager] HP 감소 - GimmickID: %d, 남은 HP: %d\n", gimmick.gimmickID, gimmick.hp);
+					}
 				}
 
 				PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
@@ -359,11 +379,19 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 				else
 				{
 					ntfPkt.state = (UINT8)eGimmickState::GimmickPush;
-					ntfPkt.targetPos.x = gimmick.totalDirX;
-					ntfPkt.targetPos.y = gimmick.position.y;
-					ntfPkt.targetPos.z = gimmick.totalDirZ;
+					if (finalForce <= 0.0f)
+					{
+						ntfPkt.targetPos = gimmick.position;
+					}
+					else
+					{
+						ntfPkt.targetPos.x = gimmick.totalDirX / playerCount;
+						ntfPkt.targetPos.y = gimmick.position.y;
+						ntfPkt.targetPos.z = gimmick.totalDirZ / playerCount;
 
-					gimmick.position = ntfPkt.targetPos;
+						// 기믹 서버 좌표 최신화
+						gimmick.position = ntfPkt.targetPos;
+					}
 				}
 
 				pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
