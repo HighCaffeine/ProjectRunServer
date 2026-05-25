@@ -30,7 +30,8 @@ enum eGimmickKey : UINT8
     Checkpoint = 11,
     BreakableObj = 12,
     Bomb = 13,
-    Gimmick_Count = 14
+    MonsterSpawnArea = 14,
+    Gimmick_Count = 15
 };
 
 enum eGimmickState : UINT8
@@ -40,7 +41,7 @@ enum eGimmickState : UINT8
     Sync = 2,        // 지속적인 물리/좌표 동기화
     Restore = 3,     // 다시 초기 위치로 돌아가야 하는 상태
     TriggerMove = 4,
-    GimmickPush = 5
+    GimmickPush = 5,
 };
 
 enum eState : UINT8

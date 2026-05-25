@@ -110,6 +110,13 @@ enum class  PACKET_ID : UINT16
 	TRADE_RESULT = 319,         // Server -> A, B: 거래 성공/실패 결과
 
 	TRADE_CONFIRM_NTF = 320,
+
+	//몬스터 동기화 패킷
+	MONSTER_SPAWN_NTF = 401,
+	MONSTER_MOVEMENT = 402,
+	MONSTER_STATE_NTF = 403,
+	MONSTER_DEAD_REQ = 404,
+	MONSTER_DEAD_NTF = 405,
 };
 
 #pragma pack(push,1)
@@ -579,6 +586,31 @@ struct TRADE_RESULT_PACKET : public PACKET_HEADER
 {
 	bool isSuccess;	//true면 갱신, false면 실패
 	TRADE_RESULT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::TRADE_RESULT) {}
+};
+#pragma endregion
+
+
+#pragma region Monster Sync Packet
+struct MONSTER_MOVEMENT_PACKET : public PACKET_HEADER
+{
+	int monsterID;
+	Vector3 currentPos;
+	Quaternion currentRot;
+
+	MONSTER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MONSTER_MOVEMENT) {}
+};
+
+struct MONSTER_DEAD_REQ_PACKET : public PACKET_HEADER
+{
+	int monsterID;
+	MONSTER_DEAD_REQ_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MONSTER_DEAD_REQ) {}
+};
+
+struct MONSTER_DEAD_NTF_PACKET : public PACKET_HEADER
+{
+	int monsterID;
+	Vector3 hitDirection;
+	MONSTER_DEAD_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MONSTER_DEAD_NTF) {}
 };
 #pragma endregion
 

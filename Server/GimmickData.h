@@ -34,6 +34,8 @@ struct ServerGimmickData
     int activationType = 0;   // 0 = 상시(기존), 1 = 트리거(밟음)
     float waitTime = 0.0f;    // 1초 등 대기 시간
     int spawnGimmickKey;
+    int monsterType = 0;
+    int assignMonsterID = 0;
 
     //플랫폼 돌아가기위해 추가
     bool isReturning = false;
@@ -65,6 +67,7 @@ inline UINT8 ConvertGimmickTypeToEnum(const std::string& typeStr)
     if (typeStr == "Checkpoint") return (UINT8)eGimmickKey::Checkpoint;
     if (typeStr == "BreakableObj") return (UINT8)eGimmickKey::BreakableObj;
     if (typeStr == "Bomb") return (UINT8)eGimmickKey::Bomb;
+    if (typeStr == "MonsterSpawnArea") return (UINT8)eGimmickKey::MonsterSpawnArea;
 
     return (UINT8)eGimmickKey::Gimmick_NONE;
 }
