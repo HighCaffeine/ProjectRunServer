@@ -188,6 +188,15 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 			{
 				it->second.gimmickRecoverTime = (gimmick.waitTime > 0.0f) ? gimmick.waitTime : 7.0f;
 			}
+
+			ntfPkt.activeUUID = pReq->activeUUID;
+			ntfPkt.gimmickID = pReq->gimmickID;
+			ntfPkt.gimmickKey = pReq->gimmickKey;
+			ntfPkt.state = (UINT8)eGimmickState::On_Activate;
+			ntfPkt.param = 0.0f;
+			ntfPkt.targetPos = gimmick.position;
+			ntfPkt.timestamp = pReq->timestamp;
+			shouldBroadcastNow = true;
 		}
 
 		/*if (gimmick.type == (int)eGimmickKey::MovePlatform)
@@ -239,7 +248,19 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 			ntfPkt.gimmickKey = pReq->gimmickKey;
 			ntfPkt.state = pReq->state;
 			ntfPkt.param = pReq->param;
-			ntfPkt.targetPos = (pReq->state == (UINT8)eGimmickState::Sync) ? pReq->targetPos : gimmick.position;
+
+			if (pReq->state == (UINT8)eGimmickState::Sync ||
+				pReq->state == (UINT8)eGimmickState::GimmickPush)
+			{
+				ntfPkt.targetPos = pReq->targetPos; 
+				gimmick.position = pReq->targetPos;
+			}
+			else
+			{
+				ntfPkt.targetPos = gimmick.position; 
+			}
+
+			ntfPkt.timestamp = pReq->timestamp;
 		}
 	}
 
@@ -275,6 +296,8 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					ntfPkt.state = (UINT8)eGimmickState::Restore;
 					ntfPkt.param = 0.0f;
 					ntfPkt.targetPos = { gimmick.position.x, gimmick.position.y, gimmick.position.z };
+					auto now = std::chrono::system_clock::now();
+					ntfPkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
 					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 					//pRoom->BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, ntfPkt.targetPos, 40.0f);
@@ -297,7 +320,9 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					ntfPkt.gimmickKey = gimmick.type;
 					ntfPkt.state = (UINT8)eGimmickState::TriggerMove;
 					ntfPkt.targetPos = gimmick.endPos;
-					ntfPkt.param = 0.0f;
+					ntfPkt.param = 0.0f; 
+					auto now = std::chrono::system_clock::now();
+					ntfPkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 
 					gimmick.isReturning = true;
@@ -326,6 +351,9 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					ntfPkt.state = (UINT8)eGimmickState::Restore;
 					ntfPkt.targetPos = gimmick.startPos;
 					ntfPkt.param = 0.0f;
+					auto now = std::chrono::system_clock::now();
+					ntfPkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+
 					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 				}
 			}
@@ -379,20 +407,33 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 				else
 				{
 					ntfPkt.state = (UINT8)eGimmickState::GimmickPush;
-					if (finalForce <= 0.0f)
+
+					float sumX = gimmick.totalDirX;
+					float sumZ = gimmick.totalDirZ;
+					float totalMag = sqrt(sumX * sumX + sumZ * sumZ);
+
+					if (totalMag < 0.01f || finalForce <= 0.0f)
 					{
 						ntfPkt.targetPos = gimmick.position;
 					}
 					else
 					{
-						ntfPkt.targetPos.x = gimmick.totalDirX / playerCount;
-						ntfPkt.targetPos.y = gimmick.position.y;
-						ntfPkt.targetPos.z = gimmick.totalDirZ / playerCount;
+						float normX = sumX / totalMag;
+						float normZ = sumZ / totalMag;
 
-						// ±â¹Í ¼­¹ö ÁÂÇ¥ ÃÖ½ÅÈ­
+						float ratio = totalMag / gimmick.baseForce;
+						float finalDist = ratio * 3.0f;
+
+						ntfPkt.targetPos.x = gimmick.position.x + normX * finalDist;
+						ntfPkt.targetPos.y = gimmick.position.y;
+						ntfPkt.targetPos.z = gimmick.position.z + normZ * finalDist;
+
 						gimmick.position = ntfPkt.targetPos;
 					}
 				}
+
+				auto now = std::chrono::system_clock::now();
+				ntfPkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
 				pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 

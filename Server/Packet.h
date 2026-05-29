@@ -35,6 +35,9 @@ enum class  PACKET_ID : UINT16
 	SYS_USER_DISCONNECT = 12,
 	SYS_END = 30,
 
+	SYS_TIME_SYNC_REQ = 101,
+	SYS_TIME_SYNC_RES = 102,
+
 	//DB
 	DB_END = 199,
 
@@ -131,6 +134,21 @@ struct PACKET_HEADER
 	}
 };
 const UINT32 PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
+#pragma endregion
+
+#pragma region Unix Sync Packet
+struct TIME_SYNC_REQ_PACKET : public PACKET_HEADER
+{
+	INT64 clientTimestamp;
+	TIME_SYNC_REQ_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::SYS_TIME_SYNC_REQ) {}
+};
+
+struct TIME_SYNC_RES_PACKET : public PACKET_HEADER
+{
+	INT64 clientTimestamp;
+	INT64 serverTimestamp;
+	TIME_SYNC_RES_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::SYS_TIME_SYNC_RES) {}
+};
 #pragma endregion
 
 #pragma region Login Packets
@@ -355,6 +373,7 @@ struct PLAYER_STATUS_NTF_PACKET : public PACKET_HEADER
 	float powerOrTime;  // 넉백 파워, 대쉬 시간 등
 	UINT8 isPull;
 	Vector3 casterPos;
+	INT64 timestamp;
 	PLAYER_STATUS_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_STATUS_NTF) {}
 };
 #pragma endregion
@@ -385,6 +404,7 @@ struct PLAYER_GIMMICK_INTERACT_REQUEST_PACKET : public PACKET_HEADER
 	UINT8 state;		//0 : off / 1 : on 등 상태값
 	Vector3 targetPos;	//이동할 목표 좌표 / 밀려날 방향 등
 	float param;		//추가 기믹 데이터 (속도, 밀어내는 힘 등)
+	INT64 timestamp;
 	PLAYER_GIMMICK_INTERACT_REQUEST_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST) {}
 };
 
@@ -397,6 +417,7 @@ struct PLAYER_GIMMICK_INTERACT_NTF_PACKET : public PACKET_HEADER
 	UINT8 state;		//0 : off / 1 : on 등 상태값
 	Vector3 targetPos;	//이동할 목표 좌표 / 밀려날 방향 등
 	float param;		//추가 기믹 데이터 (속도, 밀어내는 힘 등)
+	INT64 timestamp;
 	PLAYER_GIMMICK_INTERACT_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_GIMMICK_INTERACT_NTF) {}
 };
 

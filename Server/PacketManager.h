@@ -72,6 +72,8 @@ private:
 
 	void ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_);
 
+	void ProcessTimeSync(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
 	void ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessUserDisConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 

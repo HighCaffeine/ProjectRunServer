@@ -23,6 +23,8 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::SYS_USER_CONNECT] = &PacketManager::ProcessUserConnect;
 	mRecvFuntionDictionary[(int)PACKET_ID::SYS_USER_DISCONNECT] = &PacketManager::ProcessUserDisConnect;
 
+	mRecvFuntionDictionary[(int)PACKET_ID::SYS_TIME_SYNC_REQ] = &PacketManager::ProcessTimeSync;
+
 	mRecvFuntionDictionary[(int)PACKET_ID::LOGIN_REQUEST] = &PacketManager::ProcessLogin;
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_LOGIN] = &PacketManager::ProcessLoginDBResult;
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_NOTICE] = &PacketManager::ProcessNoticeDBResult;
@@ -364,6 +366,22 @@ void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 pa
 	{
 		printf("[Error] Unregistered Packet ID: %d\n", packetId_);
 	}
+}
+
+void PacketManager::ProcessTimeSync(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	if (sizeof(TIME_SYNC_REQ_PACKET) != packetSize_) return;
+
+	auto pReq = reinterpret_cast<TIME_SYNC_REQ_PACKET*>(pPacket_);
+
+	TIME_SYNC_RES_PACKET resPkt;
+	resPkt.clientTimestamp = pReq->clientTimestamp;
+
+	// 서버의 현재 유닉스 타임스탬프 생성
+	auto now = std::chrono::system_clock::now();
+	resPkt.serverTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+
+	SendPacketFunc(clientIndex_, sizeof(TIME_SYNC_RES_PACKET), (char*)&resPkt);
 }
 
 void PacketManager::ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
