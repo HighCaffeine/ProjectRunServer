@@ -1,0 +1,35 @@
+## Visual Studio 관련 임시 파일 및 캐시
+.vs/
+Debug/
+Release/
+x64/
+x86/
+ipch/
+*.aps
+*.idb
+*.intermediate.manifest
+*.pch
+*.pdb
+*.tlog
+*.lastbuildstate
+*.unsuccessfulbuild
+*.ilk
+*.exp
+*.obj
+*.iobj
+*.ipdb
+*.sdf
+*.opensdf
+*.suo
+*.user
+*.db
+*.opendb
+
+## 빌드 결과물
+*.exe
+*.dll
+*.lib
+
+## Redis 관련
+*.rdb
+*.aof

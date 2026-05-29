@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Database">
+      <UniqueIdentifier>{2226eea7-e382-49b5-9d19-ed3715d69900}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="NetworkFramework">
+      <UniqueIdentifier>{36c789df-d5be-4806-9ed0-be963cc643a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Packet">
+      <UniqueIdentifier>{02a33f13-9ead-4526-acea-7fc527aedaa7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="UserModels">
+      <UniqueIdentifier>{d1b43769-3db8-4028-b68a-7a08567e440c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utility">
+      <UniqueIdentifier>{1e9e93aa-5779-448c-a36d-0ceba2e6b6b6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="UserModels\Actor.h">
+      <Filter>UserModels</Filter>
+    </ClInclude>
+    <ClInclude Include="UserModels\UserManager.h">
+      <Filter>UserModels</Filter>
+    </ClInclude>
+    <ClInclude Include="UserModels\User.h">
+      <Filter>UserModels</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\LogManager.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility\unity.h">
+      <Filter>Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkFramework\ClientInfo.h">
+      <Filter>NetworkFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkFramework\IOCPServer.h">
+      <Filter>NetworkFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkFramework\Define.h">
+      <Filter>NetworkFramework</Filter>
+    </ClInclude>
+    <ClInclude Include="Database\RedisTaskDefine.h">
+      <Filter>Database</Filter>
+    </ClInclude>
+    <ClInclude Include="Database\RedisManager.h">
+      <Filter>Database</Filter>
+    </ClInclude>
+    <ClInclude Include="Database\CRedisConnEx.h">
+      <Filter>Database</Filter>
+    </ClInclude>
+    <ClInclude Include="Packet\ErrorCode.h">
+      <Filter>Packet</Filter>
+    </ClInclude>
+    <ClInclude Include="Packet\Packet.h">
+      <Filter>Packet</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Utility\unity.cpp">
+      <Filter>Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="Packet\Packet.cpp">
+      <Filter>Packet</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

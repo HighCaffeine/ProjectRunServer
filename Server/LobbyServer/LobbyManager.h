@@ -1,13 +1,12 @@
 #pragma once
 #pragma once
-#include "User.h"
-#include "Packet.h"
-#include "RedisManager.h"
-#include "UserManager.h"
+#include "UserModels\User.h"
+#include "UserModels\UserManager.h"
+#include "Packet\Packet.h"
+#include "Database\RedisManager.h"
+
 #include <mutex>
 #include <functional>
-
-#include "RoomManager.h"
 
 class LobbyManager
 {
@@ -22,20 +21,16 @@ class LobbyManager
 	};
 	TradeSession curTS;
 #pragma endregion
-	
-
-	RoomManager* mRoomManager;
 
 public:
 	LobbyManager() = default;
 	~LobbyManager() = default;
 
-	void Init(RedisManager* redisMgr, UserManager* userMgr, RoomManager* roomMgr, std::function<void(UINT32, UINT32, char*)> sendFunc)
+	void Init(RedisManager* redisMgr, UserManager* userMgr, std::function<void(UINT32, UINT32, char*)> sendFunc)
 	{
 		mRedisMgr = redisMgr;
 		mUserManager = userMgr;
 		SendPacketFunc = sendFunc;
-		mRoomManager = roomMgr;
 	}
 
 
