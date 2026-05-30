@@ -3,7 +3,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <iostream>
-#include "unity.h"
+#include "..\Utility\unity.h"
 
 
 const int MAX_USER_ID_LEN = 32;
@@ -44,6 +44,8 @@ enum class  PACKET_ID : UINT16
 	//Client
 	LOGIN_REQUEST = 201,
 	LOGIN_RESPONSE = 202,
+
+	MATCH_START_NTF = 210,
 
 	// Enter
 	ROOM_ENTER_REQUEST = 206,
@@ -167,6 +169,14 @@ struct LOGIN_RESPONSE_PACKET : public PACKET_HEADER
 	UINT16 Result;
 
 	LOGIN_RESPONSE_PACKET() : Result{ 0 }, PACKET_HEADER(sizeof(*this), PACKET_ID::LOGIN_RESPONSE) {}
+};
+
+struct MATCH_START_NTF_PACKET : public PACKET_HEADER
+{
+	UINT16 PacketId = (UINT16)PACKET_ID::MATCH_START_NTF;
+	UINT16 GameServerPort;
+	char AuthToken[64];
+	MATCH_START_NTF_PACKET() : AuthToken{ 0 }, GameServerPort{0}, PACKET_HEADER(sizeof(*this), PACKET_ID::MATCH_START_NTF) {}
 };
 #pragma endregion
 

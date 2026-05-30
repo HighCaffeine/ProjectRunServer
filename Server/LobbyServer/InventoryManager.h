@@ -1,5 +1,6 @@
-#include "RedisManager.h"
+#include "Database\RedisManager.h"
 
+class ItemID;
 
 class InventoryManager
 {
@@ -105,4 +106,4 @@ private:
 	std::mutex mResLock;
 	std::deque<RedisTask> mResponseTask;
 
-}
+};

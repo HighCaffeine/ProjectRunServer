@@ -7,6 +7,9 @@
 
 #include <mutex>
 #include <functional>
+#include <strsafe.h>
+
+class RoomManager;
 
 class LobbyManager
 {
@@ -26,14 +29,161 @@ public:
 	LobbyManager() = default;
 	~LobbyManager() = default;
 
-	void Init(RedisManager* redisMgr, UserManager* userMgr, std::function<void(UINT32, UINT32, char*)> sendFunc)
+	void Init(RedisManager* redisMgr, UserManager* userMgr, RoomManager* roomMgr, std::function<void(UINT32, UINT32, char*)> sendFunc)
 	{
 		mRedisMgr = redisMgr;
 		mUserManager = userMgr;
+		mRoomManager = roomMgr;
 		SendPacketFunc = sendFunc;
+
+		std::random_device rd;
+		mRandomEngine = std::mt19937(rd());
 	}
 
+	void ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		auto pLoginReqPacket = reinterpret_cast<LOGIN_REQUEST_PACKET*>(pPacket_);
 
+		if (mUserManager->GetCurrentUserCnt() >= mUserManager->GetMaxUserCnt())
+		{
+			LOGIN_RESPONSE_PACKET res;
+			res.Result = (UINT16)ERROR_CODE::LOGIN_USER_USED_ALL_OBJ;
+			SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+			return;
+		}
+
+		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+		if (pUser)
+		{
+			pUser->SetLogin(pLoginReqPacket->userID);
+		}
+
+		LOGIN_RESPONSE_PACKET loginResPacket;
+		loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
+		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+	}
+
+	void ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		auto pReq = reinterpret_cast<ROOM_ENTER_REQUEST_PACKET*>(pPacket_);
+		auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+		if (!pReqUser) return;
+
+		INT32 currentRoom = pReqUser->GetCurrentRoom();
+		if (currentRoom != -1) mRoomManager->LeaveUser(currentRoom, pReqUser);
+
+		auto enterResult = mRoomManager->EnterUser(pReq->RoomNumber, pReqUser);
+
+		ROOM_ENTER_RESPONSE_PACKET res;
+		res.Result = enterResult;
+		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+
+		if (enterResult == (UINT16)ERROR_CODE::NONE)
+		{
+			auto pRoom = mRoomManager->GetRoomByNumber(pReq->RoomNumber);
+			if (pRoom) pRoom->NotifyUserEnter(clientIndex_, pReqUser->GetUserId());
+		}
+	}
+
+	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+		if (!pReqUser) return;
+
+		ROOM_LEAVE_RESPONSE_PACKET res;
+		res.Result = mRoomManager->LeaveUser(pReqUser->GetCurrentRoom(), pReqUser);
+		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+	}
+
+	void ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		auto* pReq = reinterpret_cast<PLAYER_READY_REQUEST_PACKET*>(pPacket_);
+		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+		if (!pUser) return;
+
+		auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+		if (pRoom)
+		{
+			pRoom->ProcessPlayerReady(pUser, pReq->isReady);
+
+			if (pRoom->IsAllReady())
+			{
+				std::vector<User*> roomUsers = pRoom->GetRoomUserList();
+				GenerateGameSession(pRoom->GetRoomNumber(), roomUsers);
+			}
+		}
+	}
+
+	void GenerateGameSession(INT32 roomNum, const std::vector<User*>& roomUsers)
+	{
+		printf("[LobbyManager] 방 %d번 전원 준비 완료 게임 세션 할당 시작.\n", roomNum);
+
+		// 임시로 게임 서버 포트는 11021로 고정
+		UINT16 allocatedPort = 11021;
+		std::uniform_int_distribution<int> dis(1000, 9999);
+
+		for (auto* user : roomUsers)
+		{
+			if (!user) continue;
+
+			// 고유 토큰 생성 (TOKEN_유저인덱스_난수)
+			std::string tokenStr = "TOKEN_" + std::to_string(user->GetNetConnIdx()) + "_" + std::to_string(dis(mRandomEngine));
+
+			// Redis에 토큰 저장
+			RedisAuthTokenReq dbReq;
+			dbReq.UserIndex = user->GetNetConnIdx();
+			StringCbCopyA(dbReq.Token, sizeof(dbReq.Token), tokenStr.c_str());
+
+			RedisTask task;
+			task.UserIndex = user->GetNetConnIdx();
+			task.TaskID = RedisTaskID::REQUEST_SET_AUTH_TOKEN;
+			task.DataSize = sizeof(RedisAuthTokenReq);
+			task.pData = new char[task.DataSize];
+			CopyMemory(task.pData, (char*)&dbReq, task.DataSize);
+			mRedisMgr->PushTask(task);
+
+			printf("[Auth] Redis 토큰 발급 요청 큐 삽입 : %s\n", tokenStr.c_str());
+
+			// 클라이언트에게 접속할 포트와 인증 토큰 발송
+			MATCH_START_NTF_PACKET ntf;
+			ntf.GameServerPort = allocatedPort;
+			StringCbCopyA(ntf.AuthToken, sizeof(ntf.AuthToken), tokenStr.c_str());
+
+			SendPacketFunc(user->GetNetConnIdx(), sizeof(ntf), (char*)&ntf);
+		}
+	}
+
+	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		auto pReq = reinterpret_cast<ROOM_CHAT_REQUEST_PACKET*>(pPacket_);
+		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+		if (!pUser) return;
+
+		auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+		if (pRoom)
+		{
+			pRoom->NotifyChat(clientIndex_, pUser->GetUserId().c_str(), pReq->Message);
+		}
+	}
+
+	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		// Redis에서 로그인/인증 처리가 끝나고 돌아온 응답
+		auto pBody = reinterpret_cast<RedisLoginRes*>(pPacket_);
+
+		LOGIN_RESPONSE_PACKET res;
+		res.Result = pBody->Result;
+		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+	}
+
+	void ProcessNoticeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		// 공지사항 등 DB 요청 후 콜백 처리 (현 단계에선 로깅만)
+		printf("[LobbyManager] 공지사항 DB 처리 완료. Client: %d\n", clientIndex_);
+	}
+
+//거래 & 상점 처리 안써서 비활성화함
+#if 0
 	void ProcessTradeRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 	{
 		auto pReq = (TRADE_REQUEST_PACKET*)pPacket_;
@@ -169,6 +319,7 @@ public:
 		SendPacketFunc(clientIndex_, sizeof(selfP), (char*)&selfP); // 자신에게 Lock을 보냄
 		SendPacketFunc(other, sizeof(p), (char*)&p); // 상대방에게 자신의 Lock을 보냄
 	}
+
 
 	void ProcessTradeConfirm(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 	{
@@ -403,14 +554,17 @@ public:
 		memcpy(task.pData, &cmdValue, sizeof(int));
 		mRedisMgr->PushTask(task);
 	}
-
+#endif
 	//Shop
 	int mCurrentShopItemID = 101;
 	INT64 mNextShopUpdateTime = 0;
 
 
 private:
+	std::mt19937 mRandomEngine;
+
 	RedisManager* mRedisMgr = nullptr;
 	UserManager* mUserManager = nullptr;
+	RoomManager* mRoomManager = nullptr;
 	std::function<void(UINT32, UINT32, char*)> SendPacketFunc;
 };

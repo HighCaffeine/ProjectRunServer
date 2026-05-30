@@ -32,6 +32,8 @@ void PacketManager::Init(const UINT32 maxClient_)
 
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_READY_REQUEST] = &PacketManager::ProcessPlayerReady;
 
+//거래 & 상점 패킷처리 안써서 비활성화
+#if 0
 	//레디스 응답 패킷
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_LOAD_INVENTORY] = &PacketManager::ProcessInventoryDBResult;
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_TRADE_EXCHANGE] = &PacketManager::ProcessTradeDBResult;
@@ -46,6 +48,7 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::TRADE_ITEM_UPDATE] = &PacketManager::ProcessTradeItemUpdate;
 	mRecvFuntionDictionary[(int)PACKET_ID::TRADE_LOCK] = &PacketManager::ProcessTradeLock;
 	mRecvFuntionDictionary[(int)PACKET_ID::TRADE_CONFIRM] = &PacketManager::ProcessTradeConfirm;
+#endif
 
 	CreateCompent(maxClient_);
 
@@ -101,16 +104,10 @@ void PacketManager::End()
 	if (mLobbyManager) delete mLobbyManager;
 
 	mIsRunProcessThread = false;
-	mIsRunLogicThread = false;
 
 	if (mProcessThread.joinable())
 	{
 		mProcessThread.join();
-	}
-
-	if (mLogicThread.joinable())
-	{
-		mLogicThread.join();
 	}
 }
 
@@ -190,8 +187,8 @@ PacketInfo PacketManager::DequeSystemPacketData()
 void PacketManager::RedisReqNotice(User& user, const std::string noticeMsg)
 {
 	RedisNoticeReq dbReq;
-	CopyUserID(dbReq.UserID, "[GM]");
-	StringCbCopyA(dbReq.UserID, sizeof(dbReq.UserID), "[GM]");
+	//CopyUserID(dbReq.UserID, "[GM]");
+	//StringCbCopyA(dbReq.UserID, sizeof(dbReq.UserID), "[GM]");
 	StringCbCopyA(dbReq.Message, sizeof(dbReq.Message), noticeMsg.c_str());
 
 	RedisTask task;
@@ -335,290 +332,42 @@ void PacketManager::ProcessUserDisConnect(UINT32 clientIndex_, UINT16 packetSize
 //
 //	mRedisMgr->PushResponse(resTask);
 //}
-
 void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
-	if (sizeof(LOGIN_REQUEST_PACKET) != packetSize_) return;
-
-	auto pLoginReqPacket = reinterpret_cast<LOGIN_REQUEST_PACKET*>(pPacket_);
-	auto pUserID = pLoginReqPacket->userID;
-
-	printf("Dummy Login Attempt: %s\n", pUserID);
-
-	// 접속자 수 체크
-	if (mUserManager->GetCurrentUserCnt() >= mUserManager->GetMaxUserCnt())
-	{
-		LOGIN_RESPONSE_PACKET res;
-		res.Result = (UINT16)ERROR_CODE::LOGIN_USER_USED_ALL_OBJ;
-		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
-		return;
-	}
-
-	// Redis 거치지 않고 즉시 유저 객체에 로그인 정보 세팅
-	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (pUser) 
-	{
-		pUser->SetLogin(pUserID);
-	}
-
-	// 즉시 클라이언트에 로그인 성공 패킷 전송
-	LOGIN_RESPONSE_PACKET loginResPacket;
-
-	loginResPacket.Result = clientIndex_;
-
-	SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
-
-	printf("Dummy Login Success: UserIndex(%d) ID(%s)\n", clientIndex_, pUserID);
+	mLobbyManager->ProcessLogin(clientIndex_, packetSize_, pPacket_);
 }
 
 void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
-	printf("ProcessLoginDBResult. UserIndex: %d\n", clientIndex_);
-
-	auto pBody = (RedisLoginRes*)pPacket_;
-
-	//if (pBody->Result == (UINT16)ERROR_CODE::NONE)
-	//{
-	//	//로그인 완료로 변경한다
-	//	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	//	pUser->SetLogin(pBody->UserID);
-	//}
-
-	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	pUser->SetLogin(pBody->UserID);
-
-	LOGIN_RESPONSE_PACKET loginResPacket;
-	//loginResPacket.Result = pBody->Result;
-	// Unity3D 대응용
-	loginResPacket.Result = clientIndex_;
-	SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
+	mLobbyManager->ProcessLoginDBResult(clientIndex_, packetSize_, pPacket_);
 }
 
 void PacketManager::ProcessNoticeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
-	printf("ProcessNoticeDBResult. UserIndex: %d\n", clientIndex_);
-
-	auto pBody = (RedisNoticeRes*)pPacket_;
-
-	ROOM_CHAT_NOTIFY_PACKET roomChatNtfyPkt;
-	StringCbCopyA(roomChatNtfyPkt.userID, sizeof(roomChatNtfyPkt.userID), "[GM]");
-	StringCbCopyA(roomChatNtfyPkt.Msg, sizeof(roomChatNtfyPkt.Msg), pBody->Message);
-
-	mRoomManager->SendToAllUser(roomChatNtfyPkt.PacketLength, (char*)&roomChatNtfyPkt, clientIndex_, false);
+	mLobbyManager->ProcessNoticeDBResult(clientIndex_, packetSize_, pPacket_);
 }
-
-
 
 void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
-	UNREFERENCED_PARAMETER(packetSize_);
-
-	auto pRoomEnterReqPacket = reinterpret_cast<ROOM_ENTER_REQUEST_PACKET*>(pPacket_);
-	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-
-	if (!pReqUser || pReqUser == nullptr) 
-	{
-		return;
-	}
-
-	auto roomNumber = pRoomEnterReqPacket->RoomNumber;
-	
-	INT32 currentRoom = pReqUser->GetCurrentRoom();
-	if (currentRoom != -1)
-	{
-		mRoomManager->LeaveUser(currentRoom, pReqUser);
-	}
-
-	Vector3 zeroPos = { 0.0f, 0.0f, 0.0f };
-	Quaternion zeroRot = { 0.0f, 0.0f, 0.0f, 1.0f };
-	float zeroAxis = 0.0f;
-
-	pReqUser->SetPosition(zeroPos);
-	pReqUser->mLastSentPos = zeroPos;
-	pReqUser->SetTarget(zeroPos, zeroRot, zeroAxis, zeroAxis, 0);
-			
-	// Room::EnterUser()에서 입장하는 유저에게 방안 유저 리스트를 전송한다
-	auto enterResult = mRoomManager->EnterUser(roomNumber, pReqUser);
-
-	{
-		ROOM_ENTER_RESPONSE_PACKET roomEnterResPacket;
-		roomEnterResPacket.Result = enterResult;
-		SendPacketFunc(clientIndex_, sizeof(ROOM_ENTER_RESPONSE_PACKET), (char*)&roomEnterResPacket);
-	}
-	printf("Response Packet Sended");
-
-	if (enterResult != (UINT16)ERROR_CODE::NONE)
-	{
-		spdlog::warn("[Enter] User({}) Failed. Error: {}", clientIndex_, enterResult);
-		return; 
-	}
-	else
-	{
-		spdlog::info("[Enter] User({}) Entered Room Number [{}]", clientIndex_, roomNumber);
-	}
-	auto pRoom = mRoomManager->GetRoomByNumber(roomNumber);
-
-
-	// 방안 유저들에게 입장하는 유저 정보 전송
-	pRoom->NotifyUserEnter(clientIndex_, pReqUser->GetUserId());
-
-	//인벤토리 처리
-	if (enterResult == (UINT16)ERROR_CODE::NONE)
-	{
-		RedisInvenReq req;
-		memset(&req, 0, sizeof(RedisInvenReq));
-
-		req.UserIndex = clientIndex_;
-		strncpy_s(req.UserID, MAX_USER_ID_LEN + 1, pReqUser->GetUserId().c_str(), _TRUNCATE);
-
-		RedisTask task;
-		task.TaskID = RedisTaskID::REQUEST_LOAD_INVENTORY;
-		task.DataSize = sizeof(RedisInvenReq);
-		task.pData = new char[task.DataSize];
-		memcpy(task.pData, &req, task.DataSize);
-		task.UserIndex = clientIndex_;
-		mRedisMgr->PushTask(task);
-		printf("[Debug] Room Enter Success -> Request Inventory Load for User %d\n", clientIndex_);
-
-		int cmdValue = -2;
-		RedisTask shopReq;
-		shopReq.TaskID = RedisTaskID::REQUEST_SHOP_UPDATE;
-		shopReq.DataSize = sizeof(int);
-		shopReq.pData = new char[sizeof(int)];
-		memcpy(shopReq.pData, &cmdValue, sizeof(int));
-		shopReq.UserIndex = clientIndex_;
-		mRedisMgr->PushTask(shopReq);
-	}
-
-	SHOP_INFO_PACKET shopPkt;
-	shopPkt.currentItemID = mLobbyManager->mCurrentShopItemID;
-	shopPkt.nextUpdateTime = mLobbyManager->mNextShopUpdateTime;
-
-	SendPacketFunc(clientIndex_, sizeof(shopPkt), (char*)&shopPkt);
+	mLobbyManager->ProcessEnterRoom(clientIndex_, packetSize_, pPacket_);
 }
-
 
 void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
-	UNREFERENCED_PARAMETER(packetSize_);
-	UNREFERENCED_PARAMETER(pPacket_);
-
-	ROOM_LEAVE_RESPONSE_PACKET roomLeaveResPacket;
-
-	auto reqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	auto roomNum = reqUser->GetCurrentRoom();
-				
-	roomLeaveResPacket.Result = mRoomManager->LeaveUser(roomNum, reqUser);
-	SendPacketFunc(clientIndex_, sizeof(ROOM_LEAVE_RESPONSE_PACKET), (char*)&roomLeaveResPacket);
-
-	spdlog::info("[Leave] User({}) Left Room", clientIndex_);
+	mLobbyManager->ProcessLeaveRoom(clientIndex_, packetSize_, pPacket_);
 }
 
 void PacketManager::ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
-	auto* req = reinterpret_cast<PLAYER_READY_REQUEST_PACKET*>(pPacket_);
-
-	// 유저 찾기
-	auto user = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (user == nullptr)
-	{
-		return;
-	}
-
-	// 유저가 속한 방 찾기
-	auto room = mRoomManager->GetRoomByNumber(user->GetCurrentRoom());
-	if (room != nullptr)
-	{
-		room->ProcessPlayerReady(user, req->isReady);
-	}
+	mLobbyManager->ProcessPlayerReady(clientIndex_, packetSize_, pPacket_);
 }
 
 void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
-	UNREFERENCED_PARAMETER(packetSize_);
-
-	auto pRoomChatReqPacketet = reinterpret_cast<ROOM_CHAT_REQUEST_PACKET*>(pPacket_);
-		
-	ROOM_CHAT_RESPONSE_PACKET roomChatResPacket;
-	roomChatResPacket.Result = (INT16)ERROR_CODE::NONE;
-
-	auto reqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	auto roomNum = reqUser->GetCurrentRoom();
-
-	auto pRoom = mRoomManager->GetRoomByNumber(roomNum);
-	if (pRoom == nullptr)
-	{
-		roomChatResPacket.Result = (INT16)ERROR_CODE::CHAT_ROOM_INVALID_ROOM_NUMBER;
-		SendPacketFunc(clientIndex_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
-		return;
-	}
-
-	// 특수 명령 "/c"
-	const std::string cmdMessage = pRoomChatReqPacketet->Message;
-	if (cmdMessage.find("/c", 0) == 0)
-	{
-		// Npc를 생성한다
-		pRoom->EnterNpc();
-		return;
-	}
-
-	// 공지 "/n"
-	//const std::string cmdMessage = pRoomChatReqPacketet->Message;
-	if (cmdMessage.find("/n", 0) == 0)
-	{
-		// 앞에 "/n"로 시작하는 부분을 잘라낸다
-		const std::string noticeMsg = cmdMessage.substr(2);
-		RedisReqNotice(*reqUser, noticeMsg);
-		return;
-	}
-
-	// 큐브 소환 명령어
-	/*if (cmdMessage.find("/spawn cube") == 0)
-	{
-		float cx = 5.0f, cz = 5.0f;
-		sscanf_s(cmdMessage.c_str(), "/spawn cube %f %f", &cx, &cz);
-		pRoom->EnterCube(cx, cz);
-		return;
-	}*/
-	
-	//shop 업데이트
-	if (cmdMessage.find("/shop_reset", 0) == 0)
-	{
-		printf("[GM Command] Shop Reset Req by %d\n", clientIndex_);
-
-		RedisTask task;
-		task.TaskID = RedisTaskID::REQUEST_SHOP_UPDATE;
-		task.UserIndex = clientIndex_;
-		task.DataSize = 0;
-		task.pData = nullptr;
-		mRedisMgr->PushTask(task);
-
-		return;
-	}
-
-	if (cmdMessage.find("/t add") == 0)
-	{
-		std::string s = cmdMessage.substr(7);
-		int time = std::stoi(s);
-
-		printf("[GM Command] Time Add %d hours Req by %d\n", time, clientIndex_);
-
-		RedisTask task;
-		task.TaskID = RedisTaskID::REQUEST_SHOP_UPDATE;
-		task.DataSize = sizeof(int);
-		task.pData = new char[sizeof(int)];
-		memcpy(task.pData, &time, sizeof(int));
-
-		mRedisMgr->PushTask(task);
-
-		return;
-	}
-
-	SendPacketFunc(clientIndex_, sizeof(ROOM_CHAT_RESPONSE_PACKET), (char*)&roomChatResPacket);
-
-	pRoom->NotifyChat(clientIndex_, reqUser->GetUserId().c_str(), pRoomChatReqPacketet->Message);		
+	mLobbyManager->ProcessRoomChatMessage(clientIndex_, packetSize_, pPacket_);
 }
-
+//거래 & 상점 패킷처리 안써서 비활성화
+#if 0
 void PacketManager::ProcessInventoryDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
 	auto pBody = (RedisInvenRes*)pPacket_;
@@ -750,6 +499,8 @@ void PacketManager::ProcessShopUpdateDBResult(UINT32 clientIndex_, UINT16 packet
 {
 	mLobbyManager->ProcessShopUpdateDBResult(clientIndex_, packetSize_, pPacket_);
 }
+
+#endif
 
 Vector3 stringToVector3(const std::string& s) 
 {

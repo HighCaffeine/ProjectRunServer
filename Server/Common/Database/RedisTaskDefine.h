@@ -1,154 +1,150 @@
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN
-#define EMPTYITEM 0
-#include <windows.h>
-#include "ErrorCode.h"
+#include <cstdint>
+#include <cstring>
 
-#include "unity.h"
+// ============================================================
+//  공용 상수
+// ============================================================
+constexpr int MAX_USER_ID_LEN = 32;
+constexpr int MAX_USER_PW_LEN = 32;
+constexpr int MAX_MESSAGE_LEN = 256;
+constexpr int INVENTORY_SIZE = 5;
+constexpr int EMPTYITEM = 0;
 
-enum class RedisTaskID : UINT16
+// ============================================================
+//  에러 코드 (Redis 태스크 결과용)
+// ============================================================
+enum class ERROR_CODE : uint16_t
 {
-	INVALID = 0,
-
-	REQUEST_LOGIN = 1001,
-	RESPONSE_LOGIN = 1002,
-	REQUEST_NOTICE = 1003,
-	RESPONSE_NOTICE = 1004,
-
-	//인벤
-	REQUEST_LOAD_INVENTORY = 11001,
-	RESPONSE_LOAD_INVENTORY = 11002,
-
-	//상점
-	REQUEST_SHOP_UPDATE = 12001,
-	RESPONSE_SHOP_UPDATE = 12002,
-
-	REQUEST_SHOP_BUY = 12003,
-	RESPONSE_SHOP_BUY = 12004,
-
-	//거래
-	REQUEST_TRADE_EXCHANGE = 13001,
-	RESPONSE_TRADE_EXCHANGE = 13002,
-	
+    NONE = 0,
+    LOGIN_USER_INVALID_PW = 1001,
+    LOGIN_USER_NOT_FOUND = 1002,
+    INVENTORY_FULL = 2001,
 };
 
-enum class ItemID : UINT16
+// ============================================================
+//  Redis 태스크 ID
+// ============================================================
+enum class RedisTaskID : uint16_t
 {
-	COIN = 101,
-	SWORD = 102,
-	SHIELD = 103,
-	POTION = 104,
-	CLOTHES = 105
+    INVALID = 0,
+
+    // 공지
+    REQUEST_NOTICE = 1,
+    RESPONSE_NOTICE = 2,
+
+    // 로그인
+    REQUEST_LOGIN = 10,
+    RESPONSE_LOGIN = 11,
+
+    REQUEST_SET_AUTH_TOKEN = 12,
+
+    // 인벤토리
+    REQUEST_LOAD_INVENTORY = 91,
+    RESPONSE_LOAD_INVENTORY = 92,
+
+    // 상점 (현재 인게임 미사용, 코드는 유지)
+    REQUEST_SHOP_UPDATE = 100,
+    RESPONSE_SHOP_UPDATE = 101,
+    REQUEST_SHOP_BUY = 102,
+    RESPONSE_SHOP_BUY = 103,
+
+    // 거래
+    RESPONSE_TRADE_EXCHANGE = 200,
 };
 
-
-
+// ============================================================
+//  Redis 태스크 공통 래퍼
+// ============================================================
 struct RedisTask
 {
-	UINT32 UserIndex = 0;
-	RedisTaskID TaskID = RedisTaskID::INVALID;
-	UINT16 DataSize = 0;
-	char* pData = nullptr;	
+    RedisTaskID TaskID = RedisTaskID::INVALID;
+    int         UserIndex = -1;
+    uint32_t    DataSize = 0;
+    char* pData = nullptr;
 
-	void Release()
-	{
-		if (pData != nullptr)
-		{
-			delete[] pData;
-		}
-	}
+    void Release()
+    {
+        if (pData)
+        {
+            delete[] pData;
+            pData = nullptr;
+        }
+        DataSize = 0;
+    }
 };
 
+// ============================================================
+//  요청 / 응답 구조체
+// ============================================================
 
-
-
-#pragma pack(push,1)
-
+// --- 로그인 ---
 struct RedisLoginReq
 {
-	char UserID[MAX_USER_ID_LEN + 1];
-	char UserPW[MAX_USER_PW_LEN + 1];
+    char UserID[MAX_USER_ID_LEN + 1] = {};
+    char UserPW[MAX_USER_PW_LEN + 1] = {};
 };
 
 struct RedisLoginRes
 {
-	char UserID[MAX_USER_ID_LEN + 1];
-	UINT16 Result = (UINT16)ERROR_CODE::NONE;
+    uint16_t Result = 0;
+    char     UserID[MAX_USER_ID_LEN + 1] = {};
 };
 
+struct RedisAuthTokenReq 
+{
+    int32_t UserIndex;
+    char Token[64];
+};
+
+// --- 공지 ---
 struct RedisNoticeReq
 {
-	char UserID[MAX_USER_ID_LEN + 1];
-	char Message[MAX_CHAT_MSG_SIZE + 1];
+    char Message[MAX_MESSAGE_LEN] = {};
 };
 
 struct RedisNoticeRes
 {
-	char UserID[MAX_USER_ID_LEN + 1];
-	char Message[MAX_CHAT_MSG_SIZE + 1];
+    char UserID[MAX_USER_ID_LEN + 1] = {};
+    char Message[MAX_MESSAGE_LEN] = {};
 };
 
-
-
-//인벤토리 결과물
+// --- 인벤토리 ---
 struct RedisInvenReq
 {
-	int UserIndex;
-	char UserID[MAX_USER_ID_LEN + 1];
+    int  UserIndex = -1;
+    char UserID[MAX_USER_ID_LEN + 1] = {};
 };
 
 struct RedisInvenRes
 {
-	int UserIndex;
-	int ItemSlots[INVENTORY_SIZE];
+    int UserIndex = -1;
+    int ItemSlots[INVENTORY_SIZE] = {};
 };
 
-//거래
-struct RedisTradeReq
-{
-	int UserA, UserB;				//유저 인덱스 정보
-	char UserAID[MAX_USER_ID_LEN + 1], UserBID[MAX_USER_ID_LEN + 1]; // 유저 ID
-	
-	//A 거래 데이터
-	int ItemsASlot[INVENTORY_SIZE];
-	int ItemsAID[INVENTORY_SIZE];
-	
-	//B 거래 데이터
-	int ItemsBSlot[INVENTORY_SIZE];
-	int ItemsBID[INVENTORY_SIZE];
-};
-
-struct RedisTradeRes
-{
-	//단순 성공 여부만 판단, 패킷매니저 내부에서 보내주고
-	//클라에서는 서로 뭐 보낼지는 받았으니 그걸로 하거나
-	//인벤 요청 혹시 모르니 다시 보내주거나 
-	int UserIndex;
-	bool IsSuccess;
-};
-
-//상점
-struct RedisShopReq
-{
-	int AddHour;	//시간 추가, 0이면 바로 초기화
-};
-
+// --- 상점 (인게임 미사용, 코드 유지) ---
 struct RedisShopRes
 {
-	int ItemID;
-	INT64 NextUpdateTime;
+    int      ItemID = 0;
+    uint64_t NextUpdateTime = 0;
 };
 
 struct RedisShopBuyReq
 {
-	char UserID[MAX_USER_ID_LEN + 1];
-	int itemID;
+    char UserID[MAX_USER_ID_LEN + 1] = {};
+    int  itemID = 0;
 };
 
 struct RedisShopBuyRes
 {
-	bool isSuccess;
+    bool isSuccess = false;
 };
 
-#pragma pack(pop) //위에 설정된 패킹설정이 사라짐
+// ============================================================
+//  유틸리티
+// ============================================================
+inline void CopyUserID(char* dest, const char* src)
+{
+    strncpy_s(dest, MAX_USER_ID_LEN + 1, src, _TRUNCATE);
+}

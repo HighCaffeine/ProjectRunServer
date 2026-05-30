@@ -48,9 +48,6 @@
     <ClInclude Include="Packet.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="PacketManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="RedisManager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
@@ -126,15 +123,12 @@
     <ClInclude Include="GimmickManager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="LobbyManager.h">
+    <ClInclude Include="Game_PacketManager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Packet.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="PacketManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="unity.cpp">
@@ -177,6 +171,9 @@
       <Filter>Detour</Filter>
     </ClCompile>
     <ClCompile Include="GimmickManager.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="Game_PacketManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

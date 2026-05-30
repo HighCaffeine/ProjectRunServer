@@ -164,16 +164,15 @@
     <ClInclude Include="CRedisConnEx.h" />
     <ClInclude Include="ErrorCode.h" />
     <ClInclude Include="GameServer.h" />
+    <ClInclude Include="Game_PacketManager.h" />
     <ClInclude Include="GimmickData.h" />
     <ClInclude Include="GimmickManager.h" />
-    <ClInclude Include="LobbyManager.h" />
     <ClInclude Include="LogManager.h" />
     <ClInclude Include="Mapdata.h" />
     <ClInclude Include="MapDataLoader.h" />
     <ClInclude Include="NavMeshManager.h" />
     <ClInclude Include="Npc.h" />
     <ClInclude Include="Packet.h" />
-    <ClInclude Include="PacketManager.h" />
     <ClInclude Include="RedisManager.h" />
     <ClInclude Include="RedisTaskDefine.h" />
     <ClInclude Include="Room.h" />
@@ -197,11 +196,11 @@
     <ClCompile Include="..\thirdparty\fastlz.c" />
     <ClCompile Include="..\thirdparty\recastnavigation\DetourTileCache\Source\DetourTileCache.cpp" />
     <ClCompile Include="..\thirdparty\recastnavigation\DetourTileCache\Source\DetourTileCacheBuilder.cpp" />
+    <ClCompile Include="Game_PacketManager.cpp" />
     <ClCompile Include="GimmickManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="NavMeshManager.cpp" />
     <ClCompile Include="Packet.cpp" />
-    <ClCompile Include="PacketManager.cpp" />
     <ClCompile Include="unity.cpp" />
   </ItemGroup>
   <ItemGroup>

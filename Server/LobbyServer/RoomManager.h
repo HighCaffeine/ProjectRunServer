@@ -25,7 +25,6 @@ public:
 			mRoomList[i] = new Room();
 			mRoomList[i]->SendPacketFunc = SendPacketFunc;
 			mRoomList[i]->Init((i + beginRoomNumber_), maxRoomUserCount_);
-			mRoomList[i]->LoadMapData("ServerData/Stage_1_1.0.0.json", i + beginRoomNumber_);
 		}
 	}
 

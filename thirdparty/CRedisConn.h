@@ -8,6 +8,8 @@
 #include <map>
 #include <stdexcept>
 
+#include "..\thirdparty\CRedisConn.h"
+
 #ifdef _MSC_VER
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "hiredis.lib")
@@ -18,7 +20,7 @@
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable:4200)
-#include <hiredis.h>
+#include "..\thirdparty\hiredis\hiredis.h"
 #pragma warning(pop)
 #else
 #include <hiredis.h>
@@ -971,7 +973,7 @@ protected:
 			return false;
 		}
 	}
-
+	public:
 	inline redisContext* _getCtx( ) const
 	{
 		return _redCtx;

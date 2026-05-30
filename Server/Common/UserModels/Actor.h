@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Packet.h"
-#include "NavMeshManager.h"
+#include "Packet\Packet.h"
+//#include "NavMeshManager.h"
 
 #include <string>
 

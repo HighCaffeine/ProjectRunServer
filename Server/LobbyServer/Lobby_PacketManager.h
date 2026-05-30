@@ -64,8 +64,10 @@ private:
 
 	PacketInfo DequeSystemPacketData();
 
-	void RedisReqNotice(User& user, const std::string noticeMsg);
+	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT16, char*);
+	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION> mRecvFuntionDictionary;
 
+	void RedisReqNotice(User& user, const std::string noticeMsg);
 
 	void ProcessPacket();
 
@@ -85,34 +87,23 @@ private:
 
 	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
+
+//거래 & 상점 패킷처리 안써서 비활성화
+#if 0
 	//인벤처리
 	void ProcessInventoryDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
-	typedef void(PacketManager::* PROCESS_RECV_PACKET_FUNCTION)(UINT32, UINT16, char*);
-	std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION> mRecvFuntionDictionary;
-
-	//물리 처리
-	bool mIsRunLogicThread = false;
-	std::thread mLogicThread;
-	void LogicThread(); // 20ms 주기로 실행될 함수
 
 	void ProcessTradeRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeResponse(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeItemUpdate(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeLock(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeConfirm(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessShopBuyRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessShopBuyDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessShopUpdateDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+#endif
 
 	//대역폭 확인
 	std::atomic<uint64_t> m_TotalSendBytes{ 0 };
