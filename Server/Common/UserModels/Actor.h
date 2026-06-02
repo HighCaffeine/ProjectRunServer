@@ -12,7 +12,8 @@ public:
 	{
 		NONE = 0,
 		LOGIN = 1,
-		ROOM = 2
+		ROOM = 2,
+		GAME = 3,
 	};
 
 	enum class ModifierType { ADD, MULTIPLY, FLAT };
@@ -438,8 +439,3 @@ private:
 	DOMAIN_STATE mCurDomainState = DOMAIN_STATE::NONE;
 
 };
-
-inline void CopyUserID(char* userID, const Actor& user)
-{
-	CopyUserID(userID, user.GetUserId());
-}

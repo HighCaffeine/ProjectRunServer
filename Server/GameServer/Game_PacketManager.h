@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Packet.h"
+#include "Packet\Packet.h"
 
 #include <WinSock2.h>
 #include <unordered_map>
@@ -77,6 +77,9 @@ private:
 	void ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessUserDisConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
+	void ProcessGameServerAuth(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	void ProcessGameServerAuthDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
 	void ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessNoticeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
@@ -115,23 +118,18 @@ private:
 	std::thread mUdpRecvThread;
 	void UDPRecvThread(); // UDP 패킷 수신 전용 함수
 
+//거래, 상점 관련 비활성화
+#if 0
 	void ProcessTradeRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeResponse(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeItemUpdate(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeLock(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeConfirm(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessTradeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessShopBuyRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessShopBuyDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
 	void ProcessShopUpdateDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+#endif
 
 	void ProcessMonsterDeadRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessMonsterMovement(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);

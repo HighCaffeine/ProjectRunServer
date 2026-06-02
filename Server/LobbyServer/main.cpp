@@ -1,9 +1,11 @@
-#include "LobbyManager.h" 
+#include "LobbyServer.h"
 #include "sentry.h"
 
 #include <string>
 #include <iostream>
 #include <spdlog/details/os-inl.h>
+
+class LobbyServer;
 
 const UINT16 SERVER_PORT = 11020;
 const UINT16 MAX_CLIENT = 100;    // 로비는 게임서버보다 접속 인원을 넉넉하게 잡음
@@ -17,7 +19,7 @@ int main()
 	sentry_options_set_dsn(options, "https://79824d5b1c51a97749e88cf8667b0b7c@o4510992232873984.ingest.us.sentry.io/4510992622026752");
 	// This is also the default-path. For further information and recommendations:
 	// https://docs.sentry.io/platforms/native/configuration/options/#database_path
-	sentry_options_set_database_path(options, ".sentry-native");
+	sentry_options_set_database_path(options, ".sentry-native-lobby");
 	sentry_options_set_release(options, "1.0.0");
 	sentry_options_set_debug(options, 1);
 	sentry_init(options);

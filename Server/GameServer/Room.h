@@ -1,10 +1,11 @@
 #pragma once
 
 #include "Npc.h"
-#include "UserManager.h"
-#include "Packet.h"
+#include "UserModels\UserManager.h"
+#include "Packet\Packet.h"
+#include "Utility\unity.h"
+
 #include "gimmickdata.h"
-#include "unity.h"
 #include "GimmickManager.h"
 
 #include <functional>
@@ -82,7 +83,7 @@ public:
 			// A. 기존 유저들에게 -> "신규 유저(pNewUser) 정보"를 전송
 			ROOM_USER_INFO_NTF_PACKET ntfToOld;
 			ntfToOld.userUUID = pNewUser->GetNetConnIdx();
-			CopyUserID(ntfToOld.userID, *pNewUser);
+			CopyUserID(ntfToOld.userID, pNewUser->GetUserId());
 			ntfToOld.position = pNewUser->GetPosition();
 			ntfToOld.rotation = pNewUser->GetRotation();
 
@@ -91,7 +92,7 @@ public:
 			// B. 신규 유저에게 -> "기존 유저(pExistingUser) 정보"를 전송
 			ROOM_USER_INFO_NTF_PACKET ntfToNew; // Packets.cs의 CREATE_MATCH_PLAYER 대응
 			ntfToNew.userUUID = pExistingUser->GetNetConnIdx();
-			CopyUserID(ntfToNew.userID, *pExistingUser);
+			CopyUserID(ntfToNew.userID, pExistingUser->GetUserId());
 			ntfToNew.position = pExistingUser->GetPosition();
 			ntfToNew.rotation = pExistingUser->GetRotation();
 
@@ -124,17 +125,18 @@ public:
 			printf("3. [서버 발송] %s 에게 기존 유저 %s 정보(ROOM_USER_INFO_NTF) 전송\\n", pTargetUser->GetUserId().c_str(), pOther->GetUserId().c_str());
 			ROOM_USER_INFO_NTF_PACKET ntfToNew;
 			ntfToNew.userUUID = pOther->GetNetConnIdx();
-			CopyUserID(ntfToNew.userID, *pOther);
+			CopyUserID(ntfToNew.userID, pOther->GetUserId());
 			ntfToNew.position = pOther->GetPosition();
 			ntfToNew.rotation = pOther->GetRotation();
 
 			SendPacketFunc(pTargetUser->GetNetConnIdx(), ntfToNew.PacketLength, (char*)&ntfToNew);
+			printf("[Sync] 유저 %d에게 기존 유저 %d 정보 전송\n", pTargetUser->GetNetConnIdx(), pOther->GetNetConnIdx());
 		}
 
 		// 기존 유저에게도 접속 데이터 전송
 		ROOM_USER_INFO_NTF_PACKET ntfToOld;
 		ntfToOld.userUUID = pTargetUser->GetNetConnIdx();
-		CopyUserID(ntfToOld.userID, *pTargetUser);
+		CopyUserID(ntfToOld.userID, pTargetUser->GetUserId());
 		ntfToOld.position = pTargetUser->GetPosition();
 		ntfToOld.rotation = pTargetUser->GetRotation();
 
@@ -208,7 +210,7 @@ public:
 
 		ROOM_LEAVE_USER_NTF_PACKET notifyPkt;
 		notifyPkt.userUUID = leaveUser_->GetNetConnIdx();
-		CopyUserID(notifyPkt.userID, *leaveUser_);
+		CopyUserID(notifyPkt.userID, leaveUser_->GetUserId());
 		bool EXCEPT_ME = false;
 		SendToAllUser(notifyPkt.PacketLength, (char*)&notifyPkt, notifyPkt.userUUID, EXCEPT_ME);
 
@@ -326,7 +328,7 @@ public:
 			if (pUser == nullptr) continue;
 			if (exceptMe && pUser->GetNetConnIdx() == passUserIndex_) continue;
 			
-			if (sender != nullptr)
+			/*if (sender != nullptr)
 			{
 				if (pUser != sender)
 				{
@@ -335,7 +337,7 @@ public:
 						continue;
 					}
 				}
-			}
+			}*/
 
 			SendPacketFunc((UINT32)pUser->GetNetConnIdx(), (UINT32)dataSize_, data_);
 		}
@@ -344,7 +346,6 @@ public:
 	void Update(float dt)
 	{
 		std::lock_guard<std::recursive_mutex> guard(mLock);
-
 		// 물리 연산
 		for (auto pUser : mUserList)
 		{
@@ -647,7 +648,7 @@ public:
 			// 방금 던전 로딩이 끝난 유저에게 -> 기존 유저의 모습을 보여줌
 			ROOM_USER_INFO_NTF_PACKET infoForNew;
 			infoForNew.userUUID = pRoomUser->GetNetConnIdx();
-			CopyUserID(infoForNew.userID, *pRoomUser);
+			CopyUserID(infoForNew.userID, pRoomUser->GetUserId());
 			infoForNew.position = pRoomUser->GetPosition();
 			infoForNew.rotation = pRoomUser->GetRotation();
 			SendPacketFunc(user_->GetNetConnIdx(), infoForNew.PacketLength, (char*)&infoForNew);
@@ -655,7 +656,7 @@ public:
 			// 기존 유저에게 -> 방금 던전 로딩이 끝난 유저의 모습을 보여줌
 			ROOM_USER_INFO_NTF_PACKET infoForOld;
 			infoForOld.userUUID = user_->GetNetConnIdx();
-			CopyUserID(infoForOld.userID, *user_);
+			CopyUserID(infoForOld.userID, user_->GetUserId());
 			infoForOld.position = user_->GetPosition();
 			infoForOld.rotation = user_->GetRotation();
 			SendPacketFunc(pRoomUser->GetNetConnIdx(), infoForOld.PacketLength, (char*)&infoForOld);
@@ -696,9 +697,10 @@ private:
 	{
 		if (viewer == target) return true; // 자기 자신은 항상 보임
 
-		float dist = Vector3_Distance2D(viewer->GetPosition(), target->GetPosition());
-
 		return true;
+//NavMesh 사용 X
+#if 0
+		float dist = Vector3_Distance2D(viewer->GetPosition(), target->GetPosition());
 		bool isTargetInBush = NavMeshManager::GetInstance()->IsInBush(target->GetPosition());
 
 		if (isTargetInBush)
@@ -709,6 +711,7 @@ private:
 		}
 
 		return true;
+#endif
 	}
 
 	std::unordered_map<int, ServerGimmickData> mGimmicks;

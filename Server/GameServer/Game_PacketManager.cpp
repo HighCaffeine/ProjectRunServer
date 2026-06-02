@@ -5,15 +5,14 @@
 #include <cstring>
 #include <sstream>
 #include <chrono>
-
-#include "UserManager.h"
-#include "RoomManager.h"
-#include "PacketManager.h"
-#include "RedisManager.h"
-#include "LogManager.h"
-#include "LobbyManager.h"
-
 #include <strsafe.h>
+
+#include "UserModels\UserManager.h"
+#include "RoomManager.h"
+#include "Database\RedisManager.h"
+#include "Utility\LogManager.h"
+
+#include "Game_PacketManager.h"
 
 
 void PacketManager::Init(const UINT32 maxClient_)
@@ -24,6 +23,9 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::SYS_USER_DISCONNECT] = &PacketManager::ProcessUserDisConnect;
 
 	mRecvFuntionDictionary[(int)PACKET_ID::SYS_TIME_SYNC_REQ] = &PacketManager::ProcessTimeSync;
+
+	mRecvFuntionDictionary[(int)PACKET_ID::GAME_AUTH_REQUEST] = &PacketManager::ProcessGameServerAuth;
+	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_VERIFY_TOKEN] = &PacketManager::ProcessGameServerAuthDBResult;
 
 	mRecvFuntionDictionary[(int)PACKET_ID::LOGIN_REQUEST] = &PacketManager::ProcessLogin;
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_LOGIN] = &PacketManager::ProcessLoginDBResult;
@@ -46,6 +48,9 @@ void PacketManager::Init(const UINT32 maxClient_)
 
 	//레디스 응답 패킷
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_LOAD_INVENTORY] = &PacketManager::ProcessInventoryDBResult;
+
+// 상점 & 거래 패킷처리 비활성화
+#if 0
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_TRADE_EXCHANGE] = &PacketManager::ProcessTradeDBResult;
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_SHOP_UPDATE] = &PacketManager::ProcessShopUpdateDBResult;
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_SHOP_BUY] = &PacketManager::ProcessShopBuyDBResult;
@@ -58,6 +63,7 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::TRADE_ITEM_UPDATE] = &PacketManager::ProcessTradeItemUpdate;
 	mRecvFuntionDictionary[(int)PACKET_ID::TRADE_LOCK] = &PacketManager::ProcessTradeLock;
 	mRecvFuntionDictionary[(int)PACKET_ID::TRADE_CONFIRM] = &PacketManager::ProcessTradeConfirm;
+#endif
 
 
 	//몬스터 패킷
@@ -69,8 +75,8 @@ void PacketManager::Init(const UINT32 maxClient_)
 
 	mRedisMgr = new RedisManager;// std::make_unique<RedisManager>();
 
-	mLobbyManager = new LobbyManager();
-	mLobbyManager->Init(mRedisMgr, mUserManager, mRoomManager, SendPacketFunc);
+	/*mLobbyManager = new LobbyManager();
+	mLobbyManager->Init(mRedisMgr, mUserManager, mRoomManager, SendPacketFunc);*/
 }
 
 void PacketManager::CreateCompent(const UINT32 maxClient_)
@@ -90,51 +96,14 @@ void PacketManager::CreateCompent(const UINT32 maxClient_)
 
 bool PacketManager::Run()
 {
-	/*const char* redisIp = std::getenv("REDIS_IP");
-	if (mRedisMgr->Run(redisIp ? redisIp : "host.docker.internal", 6379, 1) == false)
-	{
-		return false;
-	}*/
-
-	int retryCount = 0;
-	//const char* redisIp = std::getenv("REDIS_IP");
-
-	
-	/*std::string redisIpStr;
-	char* buf = nullptr;
-	size_t s = 0;
-
-	if (_dupenv_s(&buf, &s, "REDIS_IP") == 0 && buf != nullptr)
-	{
-		redisIpStr = buf;
-		free(buf);
-	}
-
-	Sleep(5000);
-
-	const char* redisIp = redisIpStr.c_str();*/
-
 	const char* redisIp = std::getenv("REDIS_IP");
+	if (redisIp == nullptr) redisIp = "127.0.0.1";
 
-	//while (true)
-	//{
-	//	if (mRedisMgr->Run(redisIp ? redisIp : "host.docker.internal", 6379, 2))
-	//	{
-	//		printf("[SUCCESS] Redis Connected!\n");
-	//		break;
-	//	}
-
-	//	retryCount++;
-	//	printf("[RETRY %d] Redis connection failed. Retrying in 1s...\n", retryCount);
-
-	//	if (retryCount > 15)
-	//	{
-	//		printf("[FATAL] Redis connection failed after 10 attempts.\n");
-	//		return false;
-	//	}
-
-	//	Sleep(1000); // 1초 대기 후 다시 시도
-	//}
+	if (!mRedisMgr->Run(redisIp, 6379, 1))
+	{
+		printf("[Error] PacketManager::Run() Redis 연결 실패. IP: %s\n", redisIp);
+		return false;
+	}
 
 	if (UDPRun() == false) return false;
 
@@ -151,12 +120,14 @@ bool PacketManager::Run()
 	return true;
 }
 
+extern UINT16 g_ServerPort;
+
 bool PacketManager::UDPRun()
 {
 	mUdpSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	sockaddr_in udpServerAddr;
 	udpServerAddr.sin_family = AF_INET;
-	udpServerAddr.sin_port = htons(5025);
+	udpServerAddr.sin_port = htons(g_ServerPort);
 	udpServerAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if (::bind(mUdpSocket, (sockaddr*)&udpServerAddr, sizeof(udpServerAddr)) == SOCKET_ERROR)
@@ -284,8 +255,8 @@ PacketInfo PacketManager::DequeSystemPacketData()
 void PacketManager::RedisReqNotice(User& user, const std::string noticeMsg)
 {
 	RedisNoticeReq dbReq;
-	CopyUserID(dbReq.UserID, "[GM]");
-	StringCbCopyA(dbReq.UserID, sizeof(dbReq.UserID), "[GM]");
+	//CopyUserID(dbReq.UserID, "[GM]");
+	//StringCbCopyA(dbReq.UserID, sizeof(dbReq.UserID), "[GM]");
 	StringCbCopyA(dbReq.Message, sizeof(dbReq.Message), noticeMsg.c_str());
 
 	RedisTask task;
@@ -384,6 +355,59 @@ void PacketManager::ProcessTimeSync(UINT32 clientIndex_, UINT16 packetSize_, cha
 	SendPacketFunc(clientIndex_, sizeof(TIME_SYNC_RES_PACKET), (char*)&resPkt);
 }
 
+void PacketManager::ProcessGameServerAuth(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pReqPacket = reinterpret_cast<GAME_AUTH_REQUEST_PACKET*>(pPacket_);
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (pUser == nullptr) return;
+
+	// 1. 클라이언트가 보낸 토큰을 Redis 검증을 위해 구조체에 복사
+	RedisAuthTokenReq dbReq;
+	dbReq.UserIndex = clientIndex_;
+	StringCbCopyA(dbReq.Token, sizeof(dbReq.Token), pReqPacket->AuthToken);
+
+	// 2. Redis에 검증 Task 던지기
+	RedisTask task;
+	task.UserIndex = clientIndex_;
+	task.TaskID = RedisTaskID::REQUEST_VERIFY_TOKEN; // RedisManager에 선언된 검증 ID 확인 필요
+	task.DataSize = sizeof(RedisAuthTokenReq);
+	task.pData = new char[task.DataSize];
+	CopyMemory(task.pData, (char*)&dbReq, task.DataSize);
+
+	mRedisMgr->PushTask(task);
+
+	printf("[Auth] 클라이언트(%d) 토큰 검증 요청 Redis 송신: %s\n", clientIndex_, pReqPacket->AuthToken);
+}
+
+void PacketManager::ProcessGameServerAuthDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pBody = reinterpret_cast<RedisVerifyTokenRes*>(pPacket_);
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (pUser == nullptr) return;
+
+	if (pUser->GetDomainState() == User::DOMAIN_STATE::ROOM) return; // 중복 무시 유지
+
+	GAME_AUTH_RESPONSE_PACKET res;
+
+	if (pBody->IsValid == true)
+	{
+		res.Result = clientIndex_;
+		pUser->SetDomainState(User::DOMAIN_STATE::ROOM);
+
+		INT32 targetRoomNum = pUser->GetCurrentRoom();
+		if (targetRoomNum == -1) targetRoomNum = 0;
+
+		mRoomManager->EnterUser(targetRoomNum, pUser);
+
+		printf("<color=green>[Auth] 유저(%s) 토큰 검증 성공! (New UUID: %d)</color>\n", pUser->GetUserId().c_str(), clientIndex_);
+		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+	}
+	else
+	{
+		res.Result = 9999;
+		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+	}
+}
 void PacketManager::ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
 	printf("[ProcessUserConnect] clientIndex: %d\n", clientIndex_);
@@ -587,7 +611,7 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	pRoom->NotifyUserEnter(clientIndex_, pReqUser->GetUserId());
 
 	//인벤토리 처리
-	if (enterResult == (UINT16)ERROR_CODE::NONE)
+	/*if (enterResult == (UINT16)ERROR_CODE::NONE)
 	{
 		RedisInvenReq req;
 		memset(&req, 0, sizeof(RedisInvenReq));
@@ -618,7 +642,7 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	shopPkt.currentItemID = mLobbyManager->mCurrentShopItemID;
 	shopPkt.nextUpdateTime = mLobbyManager->mNextShopUpdateTime;
 
-	SendPacketFunc(clientIndex_, sizeof(shopPkt), (char*)&shopPkt);
+	SendPacketFunc(clientIndex_, sizeof(shopPkt), (char*)&shopPkt);*/
 }
 
 
@@ -684,6 +708,7 @@ void PacketManager::ProcessPlayerMovement(UINT32 clientIndex_, UINT16 packetSize
 		// 실제 이동은 LogicThread -> Room::Update -> Actor::UpdateServerPhysics에서 처리
 		//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
 		pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axisH, pMovePkt->axisV, pMovePkt->inputSeq);
+		printf("[Movement] 유저 %d 이동 수신: %.2f, %.2f, %.2f\n", clientIndex_, pMovePkt->currentPos.x, pMovePkt->currentPos.y, pMovePkt->currentPos.z);
 	}
 }
 
@@ -693,14 +718,17 @@ void PacketManager::ProcessPlayerStateChange(UINT32 clientIndex_, UINT16 packetS
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	if (!pUser) return;
 
+	if (pReq->newState == 0 && pUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
+	{
+		return;
+	}
+
 	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
 	if (pRoom)
 	{
-		//상태 업데이트 수정으로 송신측 ID X
 		//pReq->userUUID = clientIndex_;
 
-		//브로드캐스트
-		//pRoom->SendToAllUser(pReq->PacketLength, pPacket_, clientIndex_, true);
+		// 브로드캐스트
 		pRoom->BroadcastPacket(pReq->PacketLength, pPacket_);
 		printf("[State Sync] User %d changed state to %d\n", clientIndex_, pReq->newState);
 	}
@@ -726,12 +754,12 @@ void PacketManager::ProcessSceneSync(UINT32 clientIndex_, UINT16 packetSize_, ch
 	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
 	if (pRoom != nullptr) 
 	{
-		printf("2. [서버 수신] %s 유저의 SCENE_SYNC_REQ 받음. (Room: %d)\\n", pUser->GetUserId().c_str(), pRoom->GetRoomNumber());
+		//printf("2. [서버 수신] %s 유저의 SCENE_SYNC_REQ 받음. (Room: %d)\\n", pUser->GetUserId().c_str(), pRoom->GetRoomNumber());
 		pRoom->SyncRoomStateToUser(pUser);
 	}
 	else 
 	{
-		printf("2. [서버 에러] %s 유저의 방을 찾을 수 없음!\\n", pUser->GetUserId().c_str());
+		//printf("2. [서버 에러] %s 유저의 방을 찾을 수 없음!\\n", pUser->GetUserId().c_str());
 	}
 }
 
@@ -1083,7 +1111,7 @@ void PacketManager::UDPRecvThread()
 			m_TotalRecvBytes += recvLen;
 			m_GrandTotalSendBytes += m_TotalRecvBytes;
 
-			//printf("[UDP] Packet Recv! ID:%d, Len:%d\n", pHeader->PacketId, recvLen);
+			printf("[UDP] Packet Recv! ID:%d, Len:%d\n", pHeader->PacketId, recvLen);
 
 			if (pHeader->PacketId == (UINT16)PACKET_ID::PLAYER_MOVEMENT)
 			{
@@ -1161,51 +1189,51 @@ void PacketManager::UDPRecvThread()
 		}
 	}
 }
-
-void PacketManager::ProcessTradeRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
-{
-	mLobbyManager->ProcessTradeRequest(clientIndex_, packetSize_, pPacket_);
-}
-
-void PacketManager::ProcessTradeResponse(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
-{
-	mLobbyManager->ProcessTradeResponse(clientIndex_, packetSize_, pPacket_);
-}
-
-void PacketManager::ProcessTradeItemUpdate(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
-{
-	mLobbyManager->ProcessTradeItemUpdate(clientIndex_, packetSize_, pPacket_);
-}
-
-void PacketManager::ProcessTradeLock(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
-{
-	mLobbyManager->ProcessTradeLock(clientIndex_, packetSize_, pPacket_);
-}
-
-void PacketManager::ProcessTradeConfirm(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
-{
-	mLobbyManager->ProcessTradeConfirm(clientIndex_, packetSize_, pPacket_);
-}
-
-void PacketManager::ProcessTradeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
-{
-	mLobbyManager->ProcessTradeDBResult(clientIndex_, packetSize_, pPacket_);
-}
-
-void PacketManager::ProcessShopBuyRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
-{
-	mLobbyManager->ProcessShopBuyRequest(clientIndex_, packetSize_, pPacket_);
-}
-
-void PacketManager::ProcessShopBuyDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
-{
-	mLobbyManager->ProcessShopBuyDBResult(clientIndex_, packetSize_, pPacket_);
-}
-
-void PacketManager::ProcessShopUpdateDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
-{
-	mLobbyManager->ProcessShopUpdateDBResult(clientIndex_, packetSize_, pPacket_);
-}
+//
+//void PacketManager::ProcessTradeRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
+//{
+//	mLobbyManager->ProcessTradeRequest(clientIndex_, packetSize_, pPacket_);
+//}
+//
+//void PacketManager::ProcessTradeResponse(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
+//{
+//	mLobbyManager->ProcessTradeResponse(clientIndex_, packetSize_, pPacket_);
+//}
+//
+//void PacketManager::ProcessTradeItemUpdate(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+//{
+//	mLobbyManager->ProcessTradeItemUpdate(clientIndex_, packetSize_, pPacket_);
+//}
+//
+//void PacketManager::ProcessTradeLock(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
+//{
+//	mLobbyManager->ProcessTradeLock(clientIndex_, packetSize_, pPacket_);
+//}
+//
+//void PacketManager::ProcessTradeConfirm(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
+//{
+//	mLobbyManager->ProcessTradeConfirm(clientIndex_, packetSize_, pPacket_);
+//}
+//
+//void PacketManager::ProcessTradeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
+//{
+//	mLobbyManager->ProcessTradeDBResult(clientIndex_, packetSize_, pPacket_);
+//}
+//
+//void PacketManager::ProcessShopBuyRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
+//{
+//	mLobbyManager->ProcessShopBuyRequest(clientIndex_, packetSize_, pPacket_);
+//}
+//
+//void PacketManager::ProcessShopBuyDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
+//{
+//	mLobbyManager->ProcessShopBuyDBResult(clientIndex_, packetSize_, pPacket_);
+//}
+//
+//void PacketManager::ProcessShopUpdateDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_) 
+//{
+//	mLobbyManager->ProcessShopUpdateDBResult(clientIndex_, packetSize_, pPacket_);
+//}
 
 void PacketManager::ProcessMonsterDeadRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {

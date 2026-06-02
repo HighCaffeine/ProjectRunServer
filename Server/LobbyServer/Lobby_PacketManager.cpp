@@ -25,10 +25,13 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::LOGIN_REQUEST] = &PacketManager::ProcessLogin;
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_LOGIN] = &PacketManager::ProcessLoginDBResult;
 	mRecvFuntionDictionary[(int)RedisTaskID::RESPONSE_NOTICE] = &PacketManager::ProcessNoticeDBResult;
+	mRecvFuntionDictionary[(int)PACKET_ID::SYS_TIME_SYNC_REQ] = &PacketManager::ProcessTimeSync;
 	
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_ENTER_REQUEST] = &PacketManager::ProcessEnterRoom;
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_LEAVE_REQUEST] = &PacketManager::ProcessLeaveRoom;
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
+	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_LIST_REQ] = &PacketManager::ProcessRoomListRequest;
+	mRecvFuntionDictionary[(int)PACKET_ID::GAME_START_REQUEST] = &PacketManager::ProcessGameStartRequest;
 
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_READY_REQUEST] = &PacketManager::ProcessPlayerReady;
 
@@ -72,11 +75,19 @@ void PacketManager::CreateCompent(const UINT32 maxClient_)
 	mRoomManager->SendPacketFunc = SendPacketFunc;
 	mRoomManager->Init(startRoomNummber, maxRoomCount, maxRoomUserCount);
 }
-
 bool PacketManager::Run()
 {
-	int retryCount = 0;
 	const char* redisIp = std::getenv("REDIS_IP");
+	if (redisIp == nullptr) redisIp = "127.0.0.1";
+
+	if (!mRedisMgr->Run(redisIp, 6379, 1))
+	{
+		printf("[Error] PacketManager::Run() Redis 연결 실패. IP: %s\n", redisIp);
+		return false;
+	}
+
+	mIsRunProcessThread = true;
+	mProcessThread = std::thread([this]() { ProcessPacket(); });
 
 	//상점 업데이트용
 	/*int cmdValue = -1;
@@ -86,7 +97,6 @@ bool PacketManager::Run()
 	task.pData = new char[sizeof(int)];
 	memcpy(task.pData, &cmdValue, sizeof(int));
 	mRedisMgr->PushTask(task);*/
-
 
 	return true;
 }
@@ -113,7 +123,7 @@ void PacketManager::End()
 
 void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 {
-	auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	/*auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	if (pReqUser == nullptr) return;
 
 	if (pReqUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
@@ -122,7 +132,19 @@ void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 		mRoomManager->LeaveUser(roomNum, pReqUser);
 	}
 
-	mUserManager->DeleteUserInfo(pReqUser);
+	mUserManager->DeleteUserInfo(pReqUser);*/
+
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (pUser == nullptr) return;
+
+	if (pUser->GetDomainState() == User::DOMAIN_STATE::GAME)
+	{
+		printf("[Lobby] 유저 %d(%s)가 게임 서버로 이동.\n", clientIndex_, pUser->GetUserId().c_str());
+	}
+	else
+	{
+		ClearConnectionInfo(clientIndex_);
+	}
 }
 
 void PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 size_, char* pData_)
@@ -332,6 +354,32 @@ void PacketManager::ProcessUserDisConnect(UINT32 clientIndex_, UINT16 packetSize
 //
 //	mRedisMgr->PushResponse(resTask);
 //}
+
+void PacketManager::ProcessTimeSync(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pReq = reinterpret_cast<TIME_SYNC_REQ_PACKET*>(pPacket_);
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+
+	if (pUser) 
+	{
+		pUser->SetPing(pReq->currentPing);
+	}
+
+	TIME_SYNC_RES_PACKET res;
+
+	// 1. 클라이언트가 보낸 시간표를 그대로 반환 (클라이언트의 Ping 계산용)
+	res.clientTimestamp = pReq->clientTimestamp;
+
+	// 2. 서버의 현재 시간(밀리초)을 구해서 세팅 (클라이언트의 시간 동기화용)
+	auto now = std::chrono::system_clock::now();
+	auto duration = now.time_since_epoch();
+	auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+	res.serverTimestamp = millis; // 실제 서버 시간 주입!
+
+	SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+}
+
 void PacketManager::ProcessLogin(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
 	mLobbyManager->ProcessLogin(clientIndex_, packetSize_, pPacket_);
@@ -345,6 +393,11 @@ void PacketManager::ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_
 void PacketManager::ProcessNoticeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
 	mLobbyManager->ProcessNoticeDBResult(clientIndex_, packetSize_, pPacket_);
+}
+
+void PacketManager::ProcessGameStartRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	mLobbyManager->ProcessGameStartRequest(clientIndex_, packetSize_, pPacket_);
 }
 
 void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
@@ -365,6 +418,11 @@ void PacketManager::ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, 
 void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
 	mLobbyManager->ProcessRoomChatMessage(clientIndex_, packetSize_, pPacket_);
+}
+
+void PacketManager::ProcessRoomListRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	mLobbyManager->ProcessRoomListRequest(clientIndex_, packetSize_, pPacket_);
 }
 //거래 & 상점 패킷처리 안써서 비활성화
 #if 0

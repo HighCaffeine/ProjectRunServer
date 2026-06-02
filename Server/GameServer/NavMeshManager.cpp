@@ -1,4 +1,6 @@
-#include "Packet.h" 
+#if 0
+
+#include "Packet\Packet.h" 
 #include "NavMeshManager.h"
 #include <stdio.h>
 
@@ -229,3 +231,4 @@ void NavMeshManager::UpdateTileCache(float dt)
 {
     if (m_TileCache) m_TileCache->update(dt, m_NavMesh);
 }
+#endif

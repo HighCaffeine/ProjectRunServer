@@ -1,7 +1,7 @@
 #pragma once
 
 #include "NetworkFramework\IOCPServer.h"
-#include "Game_PacketManager.h"
+#include "Lobby_PacketManager.h"
 #include "Packet\Packet.h"
 
 #include <vector>
@@ -10,16 +10,13 @@
 #include <thread>
 #include <mutex>
 
-//TODO redis 연동. hiredis 포함하기
-
-class GameServer : public IOCPServer
+class LobbyServer : public IOCPServer
 {
 public:
-	GameServer() = default;
-	virtual ~GameServer() = default;
-	
+	LobbyServer() = default;
+	virtual ~LobbyServer() = default;
 
-	virtual void OnConnect(const UINT32 clientIndex_) override 
+	virtual void OnConnect(const UINT32 clientIndex_) override
 	{
 		printf("[OnConnect] 클라이언트: Index(%d)\n", clientIndex_);
 
@@ -27,7 +24,7 @@ public:
 		m_pPacketManager->PushSystemPacket(packet);
 	}
 
-	virtual void OnClose(const UINT32 clientIndex_) override 
+	virtual void OnClose(const UINT32 clientIndex_) override
 	{
 		printf("[OnClose] 클라이언트: Index(%d)\n", clientIndex_);
 
@@ -35,39 +32,32 @@ public:
 		m_pPacketManager->PushSystemPacket(packet);
 	}
 
-	virtual void OnReceive(const UINT32 clientIndex_, const UINT32 size_, char* pData_) override  
+	virtual void OnReceive(const UINT32 clientIndex_, const UINT32 size_, char* pData_) override
 	{
-		//printf("[OnReceive] 클라이언트: Index(%d), dataSize(%d)\n", clientIndex_, size_);
-
 		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
 	}
 
 	void Run(const UINT32 maxClient)
 	{
-		/*auto sendPacketFunc = [&](UINT32 clientIndex_, UINT16 packetSize, char* pSendPacket)
-		{
-			SendMsg(clientIndex_, packetSize, pSendPacket);
-		};*/
-		//m_pPacketManager->SendPacketFunc = sendPacketFunc;
+		m_pPacketManager = std::make_unique<PacketManager>(); // Lobby_PacketManager 
 
-		m_pPacketManager = std::make_unique<PacketManager>();
-		//기존거에 + 전송량 총합 검사
+		// 네트워크 전송 콜백 등록 (전송량 검사 포함)
 		m_pPacketManager->RegisterSendFunction([&](UINT32 clientIndex_, UINT32 packetSize, char* pSendPacket) {
-			SendMsg(clientIndex_, packetSize, pSendPacket);});
-		m_pPacketManager->Init(maxClient);		
+			SendMsg(clientIndex_, packetSize, pSendPacket);
+			});
+
+		m_pPacketManager->Init(maxClient);
 		m_pPacketManager->Run();
-		
+
 		StartServer(maxClient);
 	}
 
 	void End()
 	{
 		m_pPacketManager->End();
-		
 		DestroyThread();
 	}
 
-
-private:	
+private:
 	std::unique_ptr<PacketManager> m_pPacketManager;
 };

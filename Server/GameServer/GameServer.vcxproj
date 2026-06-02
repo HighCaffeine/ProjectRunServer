@@ -135,7 +135,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>..\..\thirdparty;..\..\thirdparty\hiredis;..\..\thirdparty\spdlog-1.x\include;..\..\thirdparty\sentry-native;..\..\thirdparty\Detour\Include;..\..\thirdparty\recastnavigation\DetourTileCache\Include;..\..\thirdparty\recastnavigation\DetourTileCache\Source;..\..\thirdparty\recastnavigation\RecastDemo\Contrib\fastlz;..\..\thirdparty\rapidjson\include;$(SolutionDir)Common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Common;..\..\thirdparty;..\..\thirdparty\hiredis;..\..\thirdparty\spdlog-1.x\include;..\..\thirdparty\sentry-native;..\..\thirdparty\Detour\Source;..\..\thirdparty\Detour\Include;..\..\thirdparty\recastnavigation\DetourTileCache\Include;..\..\thirdparty\recastnavigation\DetourTileCache\Source;..\..\thirdparty\recastnavigation\RecastDemo\Contrib\fastlz;..\..\thirdparty\rapidjson\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -143,65 +143,44 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\thirdparty\hiredis\VS-IDE\Release;..\thirdparty\Detour\Include;..\thirdparty\sentry-native;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\thirdparty\hiredis\VS-IDE\Release;..\..\thirdparty\Detour\Include;..\..\thirdparty\sentry-native;..\..\thirdparty\Detour\Source;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>sentry.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourAlloc.h" />
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourAssert.h" />
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourCommon.h" />
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourMath.h" />
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourNavMesh.h" />
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourNavMeshBuilder.h" />
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourNavMeshQuery.h" />
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourNode.h" />
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourStatus.h" />
-    <ClInclude Include="..\thirdparty\recastnavigation\DetourTileCache\Include\DetourTileCache.h" />
-    <ClInclude Include="..\thirdparty\recastnavigation\DetourTileCache\Include\DetourTileCacheBuilder.h" />
-    <ClInclude Include="Actor.h" />
-    <ClInclude Include="CRedisConnEx.h" />
-    <ClInclude Include="ErrorCode.h" />
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourAlloc.h" />
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourAssert.h" />
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourCommon.h" />
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourMath.h" />
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourNavMesh.h" />
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourNavMeshBuilder.h" />
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourNavMeshQuery.h" />
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourNode.h" />
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourStatus.h" />
     <ClInclude Include="GameServer.h" />
     <ClInclude Include="Game_PacketManager.h" />
     <ClInclude Include="GimmickData.h" />
     <ClInclude Include="GimmickManager.h" />
-    <ClInclude Include="LogManager.h" />
     <ClInclude Include="Mapdata.h" />
     <ClInclude Include="MapDataLoader.h" />
     <ClInclude Include="NavMeshManager.h" />
     <ClInclude Include="Npc.h" />
-    <ClInclude Include="Packet.h" />
-    <ClInclude Include="RedisManager.h" />
-    <ClInclude Include="RedisTaskDefine.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="RoomManager.h" />
-    <ClInclude Include="sentry.h" />
-    <ClInclude Include="ServerNetwork\ClientInfo.h" />
-    <ClInclude Include="ServerNetwork\Define.h" />
-    <ClInclude Include="ServerNetwork\IOCPServer.h" />
-    <ClInclude Include="unity.h" />
-    <ClInclude Include="User.h" />
-    <ClInclude Include="UserManager.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourAlloc.cpp" />
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourAssert.cpp" />
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourCommon.cpp" />
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourNavMesh.cpp" />
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourNavMeshBuilder.cpp" />
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourNavMeshQuery.cpp" />
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourNode.cpp" />
-    <ClCompile Include="..\thirdparty\fastlz.c" />
-    <ClCompile Include="..\thirdparty\recastnavigation\DetourTileCache\Source\DetourTileCache.cpp" />
-    <ClCompile Include="..\thirdparty\recastnavigation\DetourTileCache\Source\DetourTileCacheBuilder.cpp" />
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourAlloc.cpp" />
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourAssert.cpp" />
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourCommon.cpp" />
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourNavMesh.cpp" />
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourNavMeshBuilder.cpp" />
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourNavMeshQuery.cpp" />
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourNode.cpp" />
     <ClCompile Include="Game_PacketManager.cpp" />
     <ClCompile Include="GimmickManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="NavMeshManager.cpp" />
-    <ClCompile Include="Packet.cpp" />
-    <ClCompile Include="unity.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.vcxproj">

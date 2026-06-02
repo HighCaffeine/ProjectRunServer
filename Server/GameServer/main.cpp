@@ -4,58 +4,54 @@
 #include <string>
 #include <iostream>
 
-const UINT16 SERVER_PORT = 11021;
-const UINT16 MAX_CLIENT = 3;		//총 접속할수 있는 클라이언트 수
-const UINT32 MAX_IO_WORKER_THREAD = 4;  //쓰레드 풀에 넣을 쓰레드 수
+const UINT32 MAX_IO_WORKER_THREAD = 4;
+UINT16 g_ServerPort = 11021;
 
-int main()
+int main(int argc, char* argv[])
 {
-	GameServer server;
+    UINT16 serverPort = 11021;
+    INT32 roomNumber = 0;
 
-	sentry_options_t* options = sentry_options_new();
-	sentry_options_set_dsn(options, "https://79824d5b1c51a97749e88cf8667b0b7c@o4510992232873984.ingest.us.sentry.io/4510992622026752");
-	// This is also the default-path. For further information and recommendations:
-	// https://docs.sentry.io/platforms/native/configuration/options/#database_path
-	sentry_options_set_database_path(options, ".sentry-native");
-	sentry_options_set_release(options, "1.0.0");
-	sentry_options_set_debug(options, 1);
-	sentry_init(options);
+    if (argc >= 3)
+    {
+        serverPort = (UINT16)std::stoi(argv[1]);
+        roomNumber = std::stoi(argv[2]);
+        g_ServerPort = serverPort;
+        printf("[System] 로비로부터 전달받은 정보 -> 포트: %d, 방번호: %d\n", serverPort, roomNumber);
+    }
+    else
+    {
+        printf("[System] 인자가 없어 기본 포트(%d)로 구동.\n", serverPort);
+    }
 
-	sentry_capture_event(sentry_value_new_message_event(
-		/*   level */ SENTRY_LEVEL_INFO,
-		/*  logger */ "custom",
-		/* message */ "It works2!"
-	));
-	SetConsoleOutputCP(CP_UTF8);
-	//SetConsoleOutputCP(65001);
+    GameServer server;
 
-	//소켓을 초기화
-	server.Init(MAX_IO_WORKER_THREAD);
+    // Sentry 초기화는 그대로 유지
+    sentry_options_t* options = sentry_options_new();
+    sentry_options_set_dsn(options, "https://79824d5b1c51a97749e88cf8667b0b7c@o4510992232873984.ingest.us.sentry.io/4510992622026752");
+    sentry_options_set_database_path(options, ".sentry-native-game");
+    sentry_options_set_release(options, "1.0.0");
+    sentry_options_set_debug(options, 1);
+    sentry_init(options);
 
-	//소켓과 서버 주소를 연결하고 등록 시킨다.
-	server.BindandListen(SERVER_PORT);
+    SetConsoleOutputCP(CP_UTF8);
 
-	server.Run(MAX_CLIENT);
+    server.Init(MAX_IO_WORKER_THREAD);
+    server.BindandListen(serverPort);
 
-	printf("아무 키나 누를 때까지 대기합니다\n");
-	while (true)
-	{
-		std::string inputCmd;
-		std::getline(std::cin, inputCmd);
-		if (std::cin.eof() || std::cin.fail())
-		{
-			std::cin.clear();
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			continue;
-		}
-		if (inputCmd == "quit")
-		{
-			break;
-		}
-	}
+    // 예: server.SetRoomNumber(roomNumber);
 
-	server.End();
-	sentry_close();
-	return 0;
+    server.Run(3);
+
+    printf("아무 키나 누를 때까지 대기합니다\n");
+    while (true)
+    {
+        std::string inputCmd;
+        std::getline(std::cin, inputCmd);
+        if (inputCmd == "quit") break;
+    }
+
+    server.End();
+    sentry_close();
+    return 0;
 }
-

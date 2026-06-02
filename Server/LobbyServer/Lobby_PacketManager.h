@@ -20,7 +20,9 @@
 class User;
 class UserManager;
 class RedisManager;
-class LobbyManager;
+class LobbyManager; 
+class RoomManager;
+class Room;
 
 Vector3 stringToVector3(const std::string& s);
 
@@ -72,7 +74,7 @@ private:
 	void ProcessPacket();
 
 	void ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_);
-
+	void ProcessTimeSync(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessUserConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessUserDisConnect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
@@ -80,8 +82,11 @@ private:
 	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessNoticeDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
+	void ProcessGameStartRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
 	void ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	void ProcessRoomListRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	void ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 

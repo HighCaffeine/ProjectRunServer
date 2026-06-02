@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "Actor.h"
-#include "unity.h"
+#include "Utility\unity.h"
 
 class User: public Actor
 {
@@ -124,8 +124,11 @@ public:
 
 	bool isUdpActive = false;
 	std::unordered_set<INT32> mVisibleList;
-private:
 
+	void SetPing(INT32 ping) { mPing = ping; }
+	INT32 GetPing() { return mPing; }
+private:
+	INT32 mPing = 0;
 
 	sockaddr_in udpAddr;
 	std::mutex mLock;

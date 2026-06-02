@@ -3,59 +3,54 @@
 #include <cstdint>
 #include <cstring>
 
-// ============================================================
-//  공용 상수
-// ============================================================
-constexpr int MAX_USER_ID_LEN = 32;
-constexpr int MAX_USER_PW_LEN = 32;
 constexpr int MAX_MESSAGE_LEN = 256;
-constexpr int INVENTORY_SIZE = 5;
 constexpr int EMPTYITEM = 0;
 
-// ============================================================
-//  에러 코드 (Redis 태스크 결과용)
-// ============================================================
-enum class ERROR_CODE : uint16_t
+enum class Redis_ERROR_CODE : uint16_t
 {
     NONE = 0,
-    LOGIN_USER_INVALID_PW = 1001,
-    LOGIN_USER_NOT_FOUND = 1002,
-    INVENTORY_FULL = 2001,
+    LOGIN_USER_INVALID_PW = 10001,
+    LOGIN_USER_NOT_FOUND = 10002,
+    INVENTORY_FULL = 20001,
 };
 
 // ============================================================
-//  Redis 태스크 ID
+//  Redis 테스크 ID
 // ============================================================
 enum class RedisTaskID : uint16_t
 {
     INVALID = 0,
 
-    // 공지
-    REQUEST_NOTICE = 1,
-    RESPONSE_NOTICE = 2,
+    // --- 1. Notice ---
+    REQUEST_NOTICE = 1001,
+    RESPONSE_NOTICE = 1002,
 
-    // 로그인
-    REQUEST_LOGIN = 10,
-    RESPONSE_LOGIN = 11,
+    // --- 2. Auth & Login ---
+    REQUEST_LOGIN = 1010,
+    RESPONSE_LOGIN = 1011,         
+    REQUEST_SET_AUTH_TOKEN = 1012,
+    REQUEST_VERIFY_TOKEN = 1013,
+    RESPONSE_VERIFY_TOKEN = 1014,
 
-    REQUEST_SET_AUTH_TOKEN = 12,
+    // --- 3. Inventory ---
+    REQUEST_LOAD_INVENTORY = 1091,
+    RESPONSE_LOAD_INVENTORY = 1092,
 
-    // 인벤토리
-    REQUEST_LOAD_INVENTORY = 91,
-    RESPONSE_LOAD_INVENTORY = 92,
+    // --- 4. Shop & Trade ---
+    //안씀
+    REQUEST_SHOP_UPDATE = 1100,
+    RESPONSE_SHOP_UPDATE = 1101,
+    REQUEST_SHOP_BUY = 1102,
+    RESPONSE_SHOP_BUY = 1103,
+    RESPONSE_TRADE_EXCHANGE = 1200,
 
-    // 상점 (현재 인게임 미사용, 코드는 유지)
-    REQUEST_SHOP_UPDATE = 100,
-    RESPONSE_SHOP_UPDATE = 101,
-    REQUEST_SHOP_BUY = 102,
-    RESPONSE_SHOP_BUY = 103,
-
-    // 거래
-    RESPONSE_TRADE_EXCHANGE = 200,
+    // --- 5. Ranking ---
+    REQUEST_SAVE_RANKING = 1300,
+    RESPONSE_SAVE_RANKING = 1301,
 };
 
 // ============================================================
-//  Redis 태스크 공통 래퍼
+//  Redis 테스크
 // ============================================================
 struct RedisTask
 {
@@ -76,10 +71,10 @@ struct RedisTask
 };
 
 // ============================================================
-//  요청 / 응답 구조체
+//  요청 / 응답 구조체 (기능별 정렬)
 // ============================================================
 
-// --- 로그인 ---
+#pragma region [1] Auth & Token
 struct RedisLoginReq
 {
     char UserID[MAX_USER_ID_LEN + 1] = {};
@@ -92,13 +87,31 @@ struct RedisLoginRes
     char     UserID[MAX_USER_ID_LEN + 1] = {};
 };
 
-struct RedisAuthTokenReq 
+struct RedisAuthTokenReq
 {
-    int32_t UserIndex;
-    char Token[64];
+    int32_t UserIndex = -1;
+    char Token[64] = {};
 };
 
-// --- 공지 ---
+struct RedisAuthTokenRes
+{
+    UINT16 Result;
+};
+
+struct RedisVerifyTokenReq
+{
+    int32_t UserIndex = -1;
+    char Token[64] = {};
+};
+
+struct RedisVerifyTokenRes
+{
+    int32_t UserIndex = -1;
+    bool IsValid = false;
+};
+#pragma endregion
+
+#pragma region [2] Notice
 struct RedisNoticeReq
 {
     char Message[MAX_MESSAGE_LEN] = {};
@@ -109,8 +122,18 @@ struct RedisNoticeRes
     char UserID[MAX_USER_ID_LEN + 1] = {};
     char Message[MAX_MESSAGE_LEN] = {};
 };
+#pragma endregion
 
-// --- 인벤토리 ---
+#pragma region [3] Ranking
+struct RedisSaveRankingReq
+{
+    char UserID[MAX_USER_ID_LEN + 1] = {};
+    float ClearTime = 0.0f;
+    int32_t DeathCount = 0;
+};
+#pragma endregion
+
+#pragma region [4] Inventory, Shop
 struct RedisInvenReq
 {
     int  UserIndex = -1;
@@ -123,7 +146,6 @@ struct RedisInvenRes
     int ItemSlots[INVENTORY_SIZE] = {};
 };
 
-// --- 상점 (인게임 미사용, 코드 유지) ---
 struct RedisShopRes
 {
     int      ItemID = 0;
@@ -140,11 +162,4 @@ struct RedisShopBuyRes
 {
     bool isSuccess = false;
 };
-
-// ============================================================
-//  유틸리티
-// ============================================================
-inline void CopyUserID(char* dest, const char* src)
-{
-    strncpy_s(dest, MAX_USER_ID_LEN + 1, src, _TRUNCATE);
-}
+#pragma endregion

@@ -5,9 +5,9 @@
 #include <chrono>
 
 #include "GimmickData.h"
-#include "Packet.h"
-#include "user.h"
-#include "unity.h"
+#include "Packet\Packet.h"
+#include "UserModels\user.h"
+#include "Utility\unity.h"
 
 #include "rapidjson/document.h"
 #include "rapidjson/filereadstream.h"

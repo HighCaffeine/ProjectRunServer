@@ -13,45 +13,15 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="ServerNetwork">
-      <UniqueIdentifier>{0f68f2e2-dd3b-4142-824a-697c1140c6e3}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Detour">
-      <UniqueIdentifier>{b4bc1a98-6ff6-4778-b5cc-d72857ec6f49}</UniqueIdentifier>
+      <UniqueIdentifier>{3bf667f5-7eff-4e8a-9797-b12b06e5d1d5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ServerNetwork\ClientInfo.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="ServerNetwork\Define.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="ServerNetwork\IOCPServer.h">
-      <Filter>ServerNetwork</Filter>
-    </ClInclude>
-    <ClInclude Include="Actor.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="CRedisConnEx.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="ErrorCode.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="GameServer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Npc.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="Packet.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="RedisManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="RedisTaskDefine.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Room.h">
@@ -60,62 +30,14 @@
     <ClInclude Include="RoomManager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="unity.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="User.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="UserManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="LogManager.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="NavMeshManager.h">
       <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="sentry.h">
-      <Filter>소스 파일</Filter>
     </ClInclude>
     <ClInclude Include="Mapdata.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="MapDataLoader.h">
       <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourAlloc.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourAssert.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourCommon.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourMath.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourNavMesh.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourNavMeshBuilder.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourNavMeshQuery.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourNode.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\Detour\Include\DetourStatus.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\recastnavigation\DetourTileCache\Include\DetourTileCache.h">
-      <Filter>Detour</Filter>
-    </ClInclude>
-    <ClInclude Include="..\thirdparty\recastnavigation\DetourTileCache\Include\DetourTileCacheBuilder.h">
-      <Filter>Detour</Filter>
     </ClInclude>
     <ClInclude Include="GimmickData.h">
       <Filter>헤더 파일</Filter>
@@ -126,55 +48,67 @@
     <ClInclude Include="Game_PacketManager.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourAlloc.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourAssert.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourCommon.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourMath.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourNavMesh.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourNavMeshBuilder.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourNavMeshQuery.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourNode.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\thirdparty\Detour\Include\DetourStatus.h">
+      <Filter>Detour</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Packet.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="unity.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="NavMeshManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="..\thirdparty\fastlz.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourAlloc.cpp">
-      <Filter>Detour</Filter>
-    </ClCompile>
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourAssert.cpp">
-      <Filter>Detour</Filter>
-    </ClCompile>
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourCommon.cpp">
-      <Filter>Detour</Filter>
-    </ClCompile>
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourNavMesh.cpp">
-      <Filter>Detour</Filter>
-    </ClCompile>
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourNavMeshBuilder.cpp">
-      <Filter>Detour</Filter>
-    </ClCompile>
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourNavMeshQuery.cpp">
-      <Filter>Detour</Filter>
-    </ClCompile>
-    <ClCompile Include="..\thirdparty\Detour\Source\DetourNode.cpp">
-      <Filter>Detour</Filter>
-    </ClCompile>
-    <ClCompile Include="..\thirdparty\recastnavigation\DetourTileCache\Source\DetourTileCache.cpp">
-      <Filter>Detour</Filter>
-    </ClCompile>
-    <ClCompile Include="..\thirdparty\recastnavigation\DetourTileCache\Source\DetourTileCacheBuilder.cpp">
-      <Filter>Detour</Filter>
-    </ClCompile>
     <ClCompile Include="GimmickManager.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Game_PacketManager.cpp">
       <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourAlloc.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourAssert.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourCommon.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourNavMesh.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourNavMeshBuilder.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourNavMeshQuery.cpp">
+      <Filter>Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\thirdparty\Detour\Source\DetourNode.cpp">
+      <Filter>Detour</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

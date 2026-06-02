@@ -136,14 +136,14 @@ private:
             auto* req = reinterpret_cast<RedisLoginReq*>(task.pData);
 
             RedisLoginRes body{};
-            body.Result = static_cast<uint16_t>(ERROR_CODE::LOGIN_USER_INVALID_PW);
+            body.Result = static_cast<uint16_t>(Redis_ERROR_CODE::LOGIN_USER_INVALID_PW);
 
             std::string value;
             if (mConn.get(req->UserID, value))
             {
                 if (value == req->UserPW)
                 {
-                    body.Result = static_cast<uint16_t>(ERROR_CODE::NONE);
+                    body.Result = static_cast<uint16_t>(Redis_ERROR_CODE::NONE);
                     CopyUserID(body.UserID, req->UserID);
                 }
                 else
@@ -154,7 +154,7 @@ private:
             else
             {
                 printf("[Redis] User Not Found: %s\n", req->UserID);
-                body.Result = static_cast<uint16_t>(ERROR_CODE::LOGIN_USER_NOT_FOUND);
+                body.Result = static_cast<uint16_t>(Redis_ERROR_CODE::LOGIN_USER_NOT_FOUND);
             }
 
             PushTypedResponse<RedisLoginRes>(RedisTaskID::RESPONSE_LOGIN, task.UserIndex, body);
@@ -168,6 +168,32 @@ private:
             redisReply* reply = (redisReply*)redisCommand(mConn._getCtx(), "SET AuthToken:%s %d EX 60", pReq->Token, pReq->UserIndex);
 
             if (reply) freeReplyObject(reply);
+            break;
+        }
+
+        case RedisTaskID::REQUEST_VERIFY_TOKEN:
+        {
+            auto pReq = reinterpret_cast<RedisVerifyTokenReq*>(task.pData);
+            RedisVerifyTokenRes resData;
+            resData.UserIndex = pReq->UserIndex;
+            resData.IsValid = false;
+
+            // GET AuthToken:{Token}
+            redisReply* reply = (redisReply*)redisCommand(mConn._getCtx(), "GET AuthToken:%s", pReq->Token);
+
+            if (reply && reply->type == REDIS_REPLY_STRING)
+            {
+                // 토큰이 존재하면 인증 성공
+                resData.IsValid = true;
+
+                // 1회용 토큰이므로 확인 즉시 삭제 (보안 및 중복사용 방지)
+                redisReply* delReply = (redisReply*)redisCommand(mConn._getCtx(), "DEL AuthToken:%s", pReq->Token);
+                if (delReply) freeReplyObject(delReply);
+            }
+
+            if (reply) freeReplyObject(reply);
+
+            PushTypedResponse(RedisTaskID::RESPONSE_VERIFY_TOKEN, pReq->UserIndex, resData);
             break;
         }
 

@@ -3,11 +3,13 @@
 #include "UserModels\User.h"
 #include "UserModels\UserManager.h"
 #include "Packet\Packet.h"
+#include "Packet\ErrorCode.h"
 #include "Database\RedisManager.h"
 
 #include <mutex>
 #include <functional>
 #include <strsafe.h>
+#include <windows.h>
 
 class RoomManager;
 
@@ -74,15 +76,18 @@ public:
 
 		auto enterResult = mRoomManager->EnterUser(pReq->RoomNumber, pReqUser);
 
+		if (enterResult == (UINT16)ERROR_CODE::NONE && pReq->RoomNumber == -1)
+		{
+			auto pRoom = mRoomManager->GetRoomByNumber(pReqUser->GetCurrentRoom());
+			if (pRoom)
+			{
+				pRoom->SetTitle(pReq->title); // 클라이언트가 보낸 제목 저장
+			}
+		}
+
 		ROOM_ENTER_RESPONSE_PACKET res;
 		res.Result = enterResult;
 		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
-
-		if (enterResult == (UINT16)ERROR_CODE::NONE)
-		{
-			auto pRoom = mRoomManager->GetRoomByNumber(pReq->RoomNumber);
-			if (pRoom) pRoom->NotifyUserEnter(clientIndex_, pReqUser->GetUserId());
-		}
 	}
 
 	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
@@ -106,11 +111,35 @@ public:
 		{
 			pRoom->ProcessPlayerReady(pUser, pReq->isReady);
 
-			if (pRoom->IsAllReady())
+			//이제 호스트가 시작
+			/*if (pRoom->IsAllReady())
 			{
 				std::vector<User*> roomUsers = pRoom->GetRoomUserList();
 				GenerateGameSession(pRoom->GetRoomNumber(), roomUsers);
-			}
+			}*/
+		}
+	}
+
+	void ProcessGameStartRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		auto pReq = reinterpret_cast<GAME_START_REQ_PACKET*>(pPacket_);
+		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+		if (!pUser) return;
+
+		auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+		if (!pRoom) return;
+
+		// 요청 유저가 호스트인지 체크
+		auto pHost = pRoom->GetUserBySlot(0);
+		if (pHost == nullptr || pHost->GetNetConnIdx() != clientIndex_) return;
+
+		if (pRoom->IsAllReady())
+		{
+			pRoom->SetIsPlaying(true);
+
+			// 게임 세션 할당 및 토큰 발급 진행
+			std::vector<User*> roomUsers = pRoom->GetRoomUserList();
+			GenerateGameSession(pRoom->GetRoomNumber(), roomUsers);
 		}
 	}
 
@@ -118,14 +147,19 @@ public:
 	{
 		printf("[LobbyManager] 방 %d번 전원 준비 완료 게임 세션 할당 시작.\n", roomNum);
 
-		// 임시로 게임 서버 포트는 11021로 고정
-		UINT16 allocatedPort = 11021;
+		// 방마다 포트 동적 할당 (11021, 11022, ...)
+		UINT16 allocatedPort = mNextGamePort++;
+		LaunchGameServer(allocatedPort, roomNum);
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		std::uniform_int_distribution<int> dis(1000, 9999);
+
+		Room* pRoom = mRoomManager->GetRoomByNumber(roomNum);
+		if (pRoom) pRoom->SetIsPlaying(true);
 
 		for (auto* user : roomUsers)
 		{
 			if (!user) continue;
-
+			user->SetDomainState(User::DOMAIN_STATE::GAME);
 			// 고유 토큰 생성 (TOKEN_유저인덱스_난수)
 			std::string tokenStr = "TOKEN_" + std::to_string(user->GetNetConnIdx()) + "_" + std::to_string(dis(mRandomEngine));
 
@@ -166,6 +200,50 @@ public:
 		}
 	}
 
+	void ProcessRoomListRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		ROOM_LIST_RES_PACKET res;
+		memset(res.rooms, 0, sizeof(res.rooms));
+		res.roomCount = 0;
+
+		int maxRoomCount = mRoomManager->GetMaxRoomCount();
+		for (int i = 0; i < maxRoomCount; ++i)
+		{
+			auto pRoom = mRoomManager->GetRoomByNumber(i);
+
+			if (pRoom && pRoom->GetCurrentUserCount() > 0)
+			{
+				res.rooms[res.roomCount].roomNum = pRoom->GetRoomNumber();
+				strncpy_s(res.rooms[res.roomCount].title, 32, pRoom->GetTitle(), _TRUNCATE);
+				res.rooms[res.roomCount].curUser = pRoom->GetCurrentUserCount();
+				res.rooms[res.roomCount].maxUser = pRoom->GetMaxUserCount();
+				res.rooms[res.roomCount].isPlaying = pRoom->GetIsPlaying();
+
+				// 호스트의 핑 가져오기
+				auto pHost = pRoom->GetUserBySlot(0);
+				res.rooms[res.roomCount].hostPing = pHost ? pHost->GetPing() : 0;
+
+				//  게스트 상태 및 준비 여부 세팅 (0=빈방, 1=준비중, 2=준비완료)
+				if (pRoom->GetCurrentUserCount() == 1)
+				{
+					res.rooms[res.roomCount].guestReadyState = 0; // 2P 자리가 비어있음 (연회색 박스)
+				}
+				else if (pRoom->GetCurrentUserCount() == 2)
+				{
+					// 게스트가 준비중인지 체크
+					bool isReady = pRoom->IsSlotReady(1);
+					res.rooms[res.roomCount].guestReadyState = isReady ? 2 : 1; // 2=초록박스, 1=빨간박스
+				}
+
+				res.roomCount++;
+				if (res.roomCount >= 20) break;
+			}
+		}
+
+		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+		printf("[Lobby] %d번 클라이언트에게 방 목록(%d개) 전송 완료 \n", clientIndex_, res.roomCount);
+	}
+
 	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 	{
 		// Redis에서 로그인/인증 처리가 끝나고 돌아온 응답
@@ -182,7 +260,41 @@ public:
 		printf("[LobbyManager] 공지사항 DB 처리 완료. Client: %d\n", clientIndex_);
 	}
 
-//거래 & 상점 처리 안써서 비활성화함
+#pragma region GameServer Launcher
+	void LaunchGameServer(UINT16 port, INT32 roomNum)
+	{
+		STARTUPINFOA si;
+		PROCESS_INFORMATION pi;
+
+		ZeroMemory(&si, sizeof(si));
+		si.cb = sizeof(si);
+		ZeroMemory(&pi, sizeof(pi));
+
+		std::string cmdLine = "GameServer.exe " + std::to_string(port) + " " + std::to_string(roomNum);
+
+		char cmdArgs[256];
+		strncpy_s(cmdArgs, cmdLine.c_str(), sizeof(cmdArgs));
+
+		if (!CreateProcessA(
+			NULL,					// 실행 파일 경로 (NULL이면 cmdArgs 첫 번째 단어 사용)
+			cmdArgs,				// 커맨드 라인 인자
+			NULL, NULL, FALSE,
+			CREATE_NEW_CONSOLE,		// 새 콘솔 창을 열어서 실행
+			NULL, NULL, &si, &pi))
+		{
+			printf("[LobbyManager] 게임 서버 구동 실패 포트: %d, 에러코드: %lu\n", port, GetLastError());
+		}
+		else
+		{
+			printf("[LobbyManager] 게임 서버 구동 성공 포트: %d (PID: %lu)\n", port, pi.dwProcessId);
+			CloseHandle(pi.hProcess);
+			CloseHandle(pi.hThread);
+		}
+	}
+
+#pragma endregion
+
+	//거래 & 상점 처리 안써서 비활성화함
 #if 0
 	void ProcessTradeRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 	{
@@ -562,6 +674,8 @@ public:
 
 private:
 	std::mt19937 mRandomEngine;
+
+	UINT16 mNextGamePort = 11021; // 방마다 동적으로 포트 할당
 
 	RedisManager* mRedisMgr = nullptr;
 	UserManager* mUserManager = nullptr;

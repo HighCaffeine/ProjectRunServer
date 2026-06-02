@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Actor.h"
+#include "UserModels\Actor.h"
 
 
 class Npc : public Actor

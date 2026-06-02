@@ -32,12 +32,33 @@ public:
 		
 	UINT16 EnterUser(INT32 roomNumber_, User* user_)
 	{
-		auto pRoom = GetRoomByNumber(roomNumber_);
-		if (pRoom == nullptr)
+		Room* pRoom = nullptr;
+
+		// 1. 방 생성 요청(-1)일 경우: 인원수가 0명인 빈 방을 찾는다.
+		if (roomNumber_ == -1)
 		{
-			return (UINT16)ERROR_CODE::ROOM_INVALID_INDEX;
+			int maxRooms = GetMaxRoomCount(); // 생성되어 있는 최대 방 개수
+			for (int i = 0; i < maxRooms; ++i)
+			{
+				auto room = GetRoomByNumber(i);
+				if (room != nullptr && room->GetCurrentUserCount() == 0)
+				{
+					pRoom = room;
+					break; // 빈 방 찾았으니 탐색 종료
+				}
+			}
+		}
+		// 2. 기존 방 참가 요청인 경우
+		else
+		{
+			pRoom = GetRoomByNumber(roomNumber_);
 		}
 
+		// 방을 못 찾았거나, 생성된 모든 방이 꽉 차서 더 이상 만들 수 없는 경우
+		if (pRoom == nullptr)
+		{
+			return 61; // (UINT16)ERROR_CODE::ROOM_INVALID_INDEX 반환
+		}
 
 		return pRoom->EnterUser(user_);
 	}

@@ -1,4 +1,5 @@
 #pragma once
+#if 0
 #include <string>
 #include "DetourNavMesh.h"
 #include "DetourNavMeshQuery.h"
@@ -83,3 +84,5 @@ private:
     dtQueryFilter m_Filter;
     float m_Extents[3] = { 2.0f, 4.0f, 2.0f };
 };
+
+#endif

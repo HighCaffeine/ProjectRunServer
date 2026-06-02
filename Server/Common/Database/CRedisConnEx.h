@@ -1,7 +1,7 @@
 #pragma once
 
-#include "..\..\..\thirdparty\CRedisConn.h"
-#include "..\..\..\thirdparty/hiredis/hiredis.h"
+#include "CRedisConn.h"
+#include "hiredis/hiredis.h"
 
 
 namespace RedisCpp
