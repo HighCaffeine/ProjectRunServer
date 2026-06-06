@@ -127,7 +127,11 @@ public:
 
 	void SetPing(INT32 ping) { mPing = ping; }
 	INT32 GetPing() { return mPing; }
+
+	void SetCharacterID(INT32 id) { mCharacterID = id; }
+	INT32 GetCharacterID() { return mCharacterID; }
 private:
+	INT32 mCharacterID;
 	INT32 mPing = 0;
 
 	sockaddr_in udpAddr;

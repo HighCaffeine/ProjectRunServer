@@ -31,6 +31,8 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_LEAVE_REQUEST] = &PacketManager::ProcessLeaveRoom;
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_CHAT_REQUEST] = &PacketManager::ProcessRoomChatMessage;
 	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_LIST_REQ] = &PacketManager::ProcessRoomListRequest;
+	mRecvFuntionDictionary[(int)PACKET_ID::ROOM_CHAR_SELECT_REQ] = &PacketManager::ProcessCharSelect;
+
 	mRecvFuntionDictionary[(int)PACKET_ID::GAME_START_REQUEST] = &PacketManager::ProcessGameStartRequest;
 
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_READY_REQUEST] = &PacketManager::ProcessPlayerReady;
@@ -123,28 +125,21 @@ void PacketManager::End()
 
 void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 {
-	/*auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
-	if (pReqUser == nullptr) return;
-
-	if (pReqUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
-	{
-		auto roomNum = pReqUser->GetCurrentRoom();
-		mRoomManager->LeaveUser(roomNum, pReqUser);
-	}
-
-	mUserManager->DeleteUserInfo(pReqUser);*/
-
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	if (pUser == nullptr) return;
 
 	if (pUser->GetDomainState() == User::DOMAIN_STATE::GAME)
 	{
-		printf("[Lobby] 유저 %d(%s)가 게임 서버로 이동.\n", clientIndex_, pUser->GetUserId().c_str());
+		printf("[Lobby] 유저 %d(%s)가 게임 서버에서 접속 종료.\n", clientIndex_, pUser->GetUserId().c_str());
 	}
-	else
+	else if (pUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
 	{
-		ClearConnectionInfo(clientIndex_);
+		auto roomNum = pUser->GetCurrentRoom();
+		mRoomManager->LeaveUser(roomNum, pUser);
 	}
+
+	mUserManager->DeleteUserInfo(pUser);
+	printf("[Lobby] 유저 %d 접속 종료 완벽 처리 (메모리 삭제 완료)\n", clientIndex_);
 }
 
 void PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 size_, char* pData_)
@@ -413,6 +408,11 @@ void PacketManager::ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 void PacketManager::ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
 	mLobbyManager->ProcessPlayerReady(clientIndex_, packetSize_, pPacket_);
+}
+
+void PacketManager::ProcessCharSelect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	mLobbyManager->ProcessCharacterSelect(clientIndex_, packetSize_, pPacket_);
 }
 
 void PacketManager::ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)

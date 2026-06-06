@@ -89,6 +89,7 @@ private:
 	void ProcessRoomListRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	void ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+	void ProcessCharSelect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	void ProcessRoomChatMessage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 

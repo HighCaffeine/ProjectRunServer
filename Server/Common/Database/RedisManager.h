@@ -20,6 +20,8 @@ public:
     RedisManager() = default;
     ~RedisManager() = default;
 
+    std::function<void(INT32)> OnRoomDeleteCallback = nullptr;
+
     bool Run(const std::string& ip, uint16_t port, uint32_t threadCount)
     {
         if (!Connect(ip, port))
@@ -45,8 +47,7 @@ public:
         mIsTaskRun = false;
         mConnSub.disConnect();
 
-        for (auto& t : mTaskThreads)
-            if (t.joinable()) t.join();
+        for (auto& t : mTaskThreads) if (t.joinable()) t.join();
     }
 
     void PushTask(RedisTask task)
@@ -105,7 +106,7 @@ private:
     {
         printf("RedisManager::TaskProcessThread() 시작\n");
 
-        static bool isBuying = false;   // 상점 거래 중 플래그 (미사용이지만 코드 유지)
+        static bool isBuying = false;   // 상점 거래 중 플래그 (미사용)
 
         while (mIsTaskRun)
         {
@@ -197,6 +198,19 @@ private:
             break;
         }
 
+        case RedisTaskID::REQUEST_ROOM_DELETE:
+        {
+            INT32 roomNum = *(INT32*)task.pData;
+
+            std::string msg = "DEL_ROOM:" + std::to_string(roomNum);
+            mConn.publish("ch_notice", msg);
+
+            printf("[Redis Pub] %d번 방 삭제 메시지 로비로 전송.\n", roomNum);
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            ExitProcess(0);
+            break;
+        }
+
         // ------------------------------------------------------------
         case RedisTaskID::REQUEST_NOTICE:
         {
@@ -220,8 +234,7 @@ private:
                 for (auto& [k, v] : inven)
                 {
                     int idx = std::stoi(k);
-                    if (idx >= 0 && idx < INVENTORY_SIZE)
-                        res.ItemSlots[idx] = std::stoi(v);
+                    if (idx >= 0 && idx < INVENTORY_SIZE) res.ItemSlots[idx] = std::stoi(v);
                 }
             }
             else
@@ -235,7 +248,7 @@ private:
         }
 
         // ------------------------------------------------------------
-        // 상점 관련 (인게임 미사용, 코드 유지)
+        // 상점 관련 (인게임 미사용)
         case RedisTaskID::REQUEST_SHOP_UPDATE:
             ProcessShopUpdate(task, isBuying);
             break;
@@ -286,7 +299,7 @@ private:
     }
 
     // ----------------------------------------------------------------
-    //  상점 처리 (인게임 미사용, 코드 유지)
+    //  상점 처리 (인게임 미사용)
     // ----------------------------------------------------------------
     void ProcessShopUpdate(RedisTask& task, bool& isBuying)
     {
@@ -430,13 +443,24 @@ private:
             mConnSub.subscribe(message);
             if (message.empty()) continue;
 
+            if (message.find("DEL_ROOM:") == 0)
+            {
+                INT32 roomNum = std::stoi(message.substr(9)); // "DEL_ROOM:1" 에서 1만 추출
+
+                printf("<color=red>[Lobby]</color> Room delete Request : %d\n", roomNum);
+
+                if (OnRoomDeleteCallback != nullptr)
+                {
+                    OnRoomDeleteCallback(roomNum);
+                }
+                continue;
+            }
+
             RedisNoticeRes body{};
             CopyUserID(body.UserID, "[GM]");
             strncpy_s(body.Message, sizeof(body.Message), message.c_str(), _TRUNCATE);
-
             PushTypedResponse<RedisNoticeRes>(RedisTaskID::RESPONSE_NOTICE, 0 /*전체*/, body);
         }
-
         printf("RedisManager::SubscribeThread() 종료\n");
     }
 

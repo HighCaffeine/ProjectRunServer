@@ -38,6 +38,13 @@ public:
 		mRoomManager = roomMgr;
 		SendPacketFunc = sendFunc;
 
+		mRedisMgr->OnRoomDeleteCallback = [this](INT32 roomNum) {
+			if (mRoomManager != nullptr)
+			{
+				mRoomManager->ClearRoom(roomNum);
+			}
+			};
+
 		std::random_device rd;
 		mRandomEngine = std::mt19937(rd());
 	}
@@ -55,13 +62,11 @@ public:
 		}
 
 		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
-		if (pUser)
-		{
-			pUser->SetLogin(pLoginReqPacket->userID);
-		}
+		if (pUser) pUser->SetLogin(pLoginReqPacket->userID);
 
 		LOGIN_RESPONSE_PACKET loginResPacket;
 		loginResPacket.Result = (UINT16)ERROR_CODE::NONE;
+		loginResPacket.userUUID = clientIndex_;
 		SendPacketFunc(clientIndex_, sizeof(LOGIN_RESPONSE_PACKET), (char*)&loginResPacket);
 	}
 
@@ -88,6 +93,8 @@ public:
 		ROOM_ENTER_RESPONSE_PACKET res;
 		res.Result = enterResult;
 		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+
+		BroadcastRoomList();
 	}
 
 	void ProcessLeaveRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
@@ -98,6 +105,8 @@ public:
 		ROOM_LEAVE_RESPONSE_PACKET res;
 		res.Result = mRoomManager->LeaveUser(pReqUser->GetCurrentRoom(), pReqUser);
 		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
+
+		BroadcastRoomList();
 	}
 
 	void ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
@@ -117,6 +126,81 @@ public:
 				std::vector<User*> roomUsers = pRoom->GetRoomUserList();
 				GenerateGameSession(pRoom->GetRoomNumber(), roomUsers);
 			}*/
+		}
+	}
+
+	void ProcessCharacterSelect(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+	{
+		auto pReq = (ROOM_CHAR_SELECT_REQ_PACKET*)pPacket_;
+		auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+		if (!pUser) return;
+
+		auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+		if (pRoom)
+		{
+			pRoom->SetUserCharID(pUser, pReq->charID);
+
+			if (pRoom->GetHostUUID() == clientIndex_)
+			{
+				INT32 guestForceCharID = (pReq->charID == 0) ? 1 : 0; // 방장과 반대 캐릭터
+				for (int i = 0; i < pRoom->GetMaxUserCount(); ++i)
+				{
+					User* pSlotUser = pRoom->GetUserBySlot(i);
+					if (pSlotUser != nullptr && pSlotUser->GetNetConnIdx() != clientIndex_)
+					{
+						pRoom->SetUserCharID(pSlotUser, guestForceCharID);
+					}
+				}
+			}
+
+			ROOM_CHAR_SELECT_NTF_PACKET ntf;
+			ntf.userUUID = clientIndex_;
+			ntf.charID = pReq->charID;
+			pRoom->BroadcastPacket(ntf.PacketLength, (char*)&ntf);
+
+			printf("[Lobby] %d User Change Character : %d \n", clientIndex_, pReq->charID);
+		}
+	}
+
+	void BroadcastRoomList()
+	{
+		ROOM_LIST_RES_PACKET res;
+		memset(res.rooms, 0, sizeof(res.rooms));
+		res.roomCount = 0;
+
+		int maxRoomCount = mRoomManager->GetMaxRoomCount();
+		for (int i = 0; i < maxRoomCount; ++i)
+		{
+			auto pRoom = mRoomManager->GetRoomByNumber(i);
+			if (pRoom && pRoom->GetCurrentUserCount() > 0)
+			{
+				res.rooms[res.roomCount].roomNum = pRoom->GetRoomNumber();
+				strncpy_s(res.rooms[res.roomCount].title, 32, pRoom->GetTitle(), _TRUNCATE);
+				res.rooms[res.roomCount].curUser = pRoom->GetCurrentUserCount();
+				res.rooms[res.roomCount].maxUser = pRoom->GetMaxUserCount();
+				res.rooms[res.roomCount].isPlaying = pRoom->GetIsPlaying();
+
+				auto pHost = pRoom->GetUserBySlot(0);
+				res.rooms[res.roomCount].hostPing = pHost ? pHost->GetPing() : 0;
+
+				if (pRoom->GetCurrentUserCount() == 1)
+					res.rooms[res.roomCount].guestReadyState = 0;
+				else if (pRoom->GetCurrentUserCount() == 2)
+					res.rooms[res.roomCount].guestReadyState = pRoom->IsSlotReady(1) ? 2 : 1;
+
+				res.roomCount++;
+			}
+		}
+
+		// 로비 상태(LOGIN)인 모든 유저에게 전송
+		int maxUsers = mUserManager->GetMaxUserCnt();
+		for (int i = 0; i < maxUsers; ++i)
+		{
+			auto pUser = mUserManager->GetUserByConnIdx(i);
+			if (pUser && pUser->GetDomainState() == User::DOMAIN_STATE::LOGIN)
+			{
+				SendPacketFunc(pUser->GetNetConnIdx(), sizeof(res), (char*)&res);
+			}
 		}
 	}
 
@@ -180,8 +264,8 @@ public:
 
 			// 클라이언트에게 접속할 포트와 인증 토큰 발송
 			MATCH_START_NTF_PACKET ntf;
-			ntf.GameServerPort = allocatedPort;
-			StringCbCopyA(ntf.AuthToken, sizeof(ntf.AuthToken), tokenStr.c_str());
+			ntf.gameServerPort = allocatedPort;
+			StringCbCopyA(ntf.authToken, sizeof(ntf.authToken), tokenStr.c_str());
 
 			SendPacketFunc(user->GetNetConnIdx(), sizeof(ntf), (char*)&ntf);
 		}
@@ -223,16 +307,39 @@ public:
 				auto pHost = pRoom->GetUserBySlot(0);
 				res.rooms[res.roomCount].hostPing = pHost ? pHost->GetPing() : 0;
 
-				//  게스트 상태 및 준비 여부 세팅 (0=빈방, 1=준비중, 2=준비완료)
+				INT32 hostCharID = 0;
+				INT32 guestCharID = 1; // 기본값 디폴트 세팅
+				INT64 currentHostUUID = pRoom->GetHostUUID();
+
+				for (int slot = 0; slot < pRoom->GetMaxUserCount(); ++slot)
+				{
+					auto pUser = pRoom->GetUserBySlot(slot);
+					if (pUser != nullptr)
+					{
+						if (pUser->GetNetConnIdx() == currentHostUUID)
+						{
+							hostCharID = pRoom->GetCharacterIDBySlot(slot);
+						}
+						else
+						{
+							guestCharID = pRoom->GetCharacterIDBySlot(slot);
+						}
+					}
+				}
+
+				// 확실하게 가공된 동적 데이터 주입
+				res.rooms[res.roomCount].hostCharID = hostCharID;
+				res.rooms[res.roomCount].guestCharID = guestCharID;
+
+				// 게스트 상태 및 준비 여부 세팅 (0=빈방, 1=준비중, 2=준비완료)
 				if (pRoom->GetCurrentUserCount() == 1)
 				{
-					res.rooms[res.roomCount].guestReadyState = 0; // 2P 자리가 비어있음 (연회색 박스)
+					res.rooms[res.roomCount].guestReadyState = 0;
 				}
 				else if (pRoom->GetCurrentUserCount() == 2)
 				{
-					// 게스트가 준비중인지 체크
 					bool isReady = pRoom->IsSlotReady(1);
-					res.rooms[res.roomCount].guestReadyState = isReady ? 2 : 1; // 2=초록박스, 1=빨간박스
+					res.rooms[res.roomCount].guestReadyState = isReady ? 2 : 1;
 				}
 
 				res.roomCount++;
@@ -241,7 +348,6 @@ public:
 		}
 
 		SendPacketFunc(clientIndex_, sizeof(res), (char*)&res);
-		printf("[Lobby] %d번 클라이언트에게 방 목록(%d개) 전송 완료 \n", clientIndex_, res.roomCount);
 	}
 
 	void ProcessLoginDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)

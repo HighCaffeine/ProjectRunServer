@@ -54,7 +54,8 @@ enum eState : UINT8
     Dash = 4,
     Knockback = 5,
     Teleport = 6,
-    State_Count = 7
+    State_Count = 7,
+    State_Escape = 8,
 };
 
 typedef struct Vector2

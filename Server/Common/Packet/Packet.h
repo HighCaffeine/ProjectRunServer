@@ -38,6 +38,9 @@ struct RoomInfo
 	char title[32];
 	INT32 hostPing;
 	BYTE guestReadyState;
+
+	INT32 hostCharID;
+	INT32 guestCharID;
 };
 
 // ============================================================
@@ -65,8 +68,8 @@ enum class PACKET_ID : UINT16
 	ROOM_NEW_USER_NTF = 208,
 	ROOM_USER_INFO_NTF = 209,
 
-	ROOM_CHAR_SELECT_REQ = 211,
-	ROOM_CHAR_SELECT_NTF = 212,
+	ROOM_CHAR_SELECT_REQ = 210,
+	ROOM_CHAR_SELECT_NTF = 211,
 
 	GAME_START_REQUEST = 215,
 
@@ -95,6 +98,8 @@ enum class PACKET_ID : UINT16
 
 	PLAYER_GIMMICK_INTERACT_REQUEST = 261,
 	PLAYER_GIMMICK_INTERACT_NTF = 262,
+	GIMMICK_BULK_RESET_REQ = 263,
+	GIMMICK_BULK_RESET_NTF = 264,
 
 	// --- 4. Game Flow & Dungeon State (270 ~ 299) ---
 	PLAYER_READY_REQUEST = 271,
@@ -228,6 +233,7 @@ struct ROOM_NEW_USER_NTF_PACKET : public PACKET_HEADER
 {
 	INT64 userUUID;
 	char userID[MAX_USER_ID_LEN + 1];
+	INT32 characterID;
 	ROOM_NEW_USER_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::ROOM_NEW_USER_NTF) {}
 };
 
@@ -237,6 +243,7 @@ struct ROOM_USER_INFO_NTF_PACKET : public PACKET_HEADER
 	char userID[MAX_USER_ID_LEN + 1];
 	Vector3 position;
 	Quaternion rotation;
+	INT32 characterID;
 	ROOM_USER_INFO_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::ROOM_USER_INFO_NTF) {}
 };
 
@@ -288,15 +295,17 @@ struct ROOM_CHAT_NOTIFY_PACKET : public PACKET_HEADER
 #pragma region [3] Game Flow & Handover
 struct MATCH_START_NTF_PACKET : public PACKET_HEADER
 {
-	UINT16 GameServerPort;
-	char AuthToken[64];
-	MATCH_START_NTF_PACKET() : AuthToken{ 0 }, GameServerPort{ 0 }, PACKET_HEADER(sizeof(*this), PACKET_ID::MATCH_START_NTF) {}
+	UINT16 gameServerPort;
+	char authToken[64];
+	MATCH_START_NTF_PACKET() : authToken{ 0 }, gameServerPort{ 0 }, PACKET_HEADER(sizeof(*this), PACKET_ID::MATCH_START_NTF) {}
 };
 
 struct GAME_AUTH_REQUEST_PACKET : public PACKET_HEADER
 {
-	char AuthToken[64];
-	GAME_AUTH_REQUEST_PACKET() : AuthToken{0}, PACKET_HEADER(sizeof(*this), PACKET_ID::GAME_AUTH_REQUEST) {}
+	char authToken[64];
+	char userName[33];
+	INT32 characterID;
+	GAME_AUTH_REQUEST_PACKET() : authToken{ 0 }, userName{0}, PACKET_HEADER(sizeof(*this), PACKET_ID::GAME_AUTH_REQUEST) {}
 };
 
 struct GAME_AUTH_RESPONSE_PACKET : public PACKET_HEADER
@@ -436,6 +445,18 @@ struct PLAYER_GIMMICK_INTERACT_NTF_PACKET : public PACKET_HEADER
 	float param;
 	INT64 timestamp;
 	PLAYER_GIMMICK_INTERACT_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_GIMMICK_INTERACT_NTF) {}
+};
+
+struct GIMMICK_BULK_RESET_PACKET : public PACKET_HEADER
+{
+	INT32 count;
+	INT32 gimmickIDs[20];
+
+	GIMMICK_BULK_RESET_PACKET(PACKET_ID id = PACKET_ID::GIMMICK_BULK_RESET_REQ) : PACKET_HEADER(sizeof(*this), id)
+	{
+		count = 0;
+		memset(gimmickIDs, 0, sizeof(gimmickIDs));
+	}
 };
 
 struct PLAYER_DEAD_REQ_PACKET : public PACKET_HEADER

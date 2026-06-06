@@ -44,6 +44,7 @@ void PacketManager::Init(const UINT32 maxClient_)
 	//플레이어 물리 / 기믹 처리
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_ACTION_REQUEST] = &PacketManager::ProcessPlayerAction;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST] = &PacketManager::ProcessGimmickInteract;
+	mRecvFuntionDictionary[(int)PACKET_ID::GIMMICK_BULK_RESET_REQ] = &PacketManager::ProcessGimmickBulkReset;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_DEAD_REQ] = &PacketManager::ProcessPlayerDead;
 
 	//레디스 응답 패킷
@@ -187,7 +188,28 @@ void PacketManager::ClearConnectionInfo(INT32 clientIndex_)
 	if (pReqUser->GetDomainState() == User::DOMAIN_STATE::ROOM)
 	{
 		auto roomNum = pReqUser->GetCurrentRoom();
+
+		// 1. 방에서 유저 퇴장 처리
 		mRoomManager->LeaveUser(roomNum, pReqUser);
+
+		auto pRoom = mRoomManager->GetRoomByNumber(roomNum);
+		if (pRoom != nullptr && pRoom->GetCurrentUserCount() == 0)
+		{
+			RedisTask task;
+			task.TaskID = RedisTaskID::REQUEST_ROOM_DELETE;
+			task.UserIndex = clientIndex_;
+
+			task.DataSize = sizeof(INT32);
+			task.pData = new char[task.DataSize];
+			memcpy(task.pData, &roomNum, task.DataSize);
+
+			if (mRedisMgr != nullptr)
+			{
+				mRedisMgr->PushTask(task);
+			}
+
+			printf("<color=red>[GameServer]</color> %d번 방 삭제 (남은 인원 0명)\n", roomNum);
+		}
 	}
 
 	mUserManager->DeleteUserInfo(pReqUser);
@@ -361,10 +383,12 @@ void PacketManager::ProcessGameServerAuth(UINT32 clientIndex_, UINT16 packetSize
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	if (pUser == nullptr) return;
 
+	pUser->SetLogin(pReqPacket->userName);
+
 	// 1. 클라이언트가 보낸 토큰을 Redis 검증을 위해 구조체에 복사
 	RedisAuthTokenReq dbReq;
 	dbReq.UserIndex = clientIndex_;
-	StringCbCopyA(dbReq.Token, sizeof(dbReq.Token), pReqPacket->AuthToken);
+	StringCbCopyA(dbReq.Token, sizeof(dbReq.Token), pReqPacket->authToken);
 
 	// 2. Redis에 검증 Task 던지기
 	RedisTask task;
@@ -376,7 +400,9 @@ void PacketManager::ProcessGameServerAuth(UINT32 clientIndex_, UINT16 packetSize
 
 	mRedisMgr->PushTask(task);
 
-	printf("[Auth] 클라이언트(%d) 토큰 검증 요청 Redis 송신: %s\n", clientIndex_, pReqPacket->AuthToken);
+	pUser->SetCharacterID(pReqPacket->characterID);
+
+	printf("[Auth] 클라이언트(%d) 토큰 검증 요청 Redis 송신: %s\n", clientIndex_, pReqPacket->authToken);
 }
 
 void PacketManager::ProcessGameServerAuthDBResult(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
@@ -894,6 +920,60 @@ void PacketManager::ProcessGimmickInteract(UINT32 clientIndex_, UINT16 packetSiz
 	}
 }
 
+void PacketManager::ProcessGimmickBulkReset(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pReq = (GIMMICK_BULK_RESET_PACKET*)pPacket_;
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		const int MAX_GIMMICK_COUNT = 20;
+		if (pReq->count < 0 || pReq->count > MAX_GIMMICK_COUNT)
+		{
+			printf("[Warning] Invalid gimmick count from User %d: %d\n", clientIndex_, pReq->count);
+			return;
+		}
+
+		GIMMICK_BULK_RESET_PACKET ntfPkt(PACKET_ID::GIMMICK_BULK_RESET_NTF);
+
+		ntfPkt.count = pReq->count;
+		memcpy(ntfPkt.gimmickIDs, pReq->gimmickIDs, sizeof(INT32) * pReq->count);
+		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+
+		pRoom->ResetGimmicks(pReq->count, pReq->gimmickIDs);
+		printf("[Gimmick Bulk Reset] User %d reset %d gimmicks.\n", clientIndex_, pReq->count);
+	}
+}
+
+//void PacketManager::ProcessPlayerDead(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+//{
+//	auto pReq = (PLAYER_DEAD_REQ_PACKET*)pPacket_;
+//	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+//	if (!pUser) return;
+//
+//	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+//	if (pRoom)
+//	{
+//		pUser->SetPosition(pReq->respawnPos); // 서버 좌표 시체 위치 -> 부활 위치 갱신
+//		Vector3 p;
+//		p.x = 0; p.y = 0; p.z = 0;
+//		PLAYER_STATUS_NTF_PACKET statusPkt;
+//		statusPkt.userUUID = clientIndex_;
+//		statusPkt.newState = eState::Teleport;
+//		statusPkt.targetDir = pReq->respawnPos; // 부활 좌표를 담음
+//		statusPkt.powerOrTime = 0.0f;
+//		statusPkt.isPull = 0;
+//		statusPkt.casterPos = p;
+//
+//		pRoom->BroadcastPacket(statusPkt.PacketLength, (char*)&statusPkt);
+//
+//		printf("[Respawn] User %d Respawned at: %.2f, %.2f, %.2f\n",
+//			clientIndex_, pReq->respawnPos.x, pReq->respawnPos.y, pReq->respawnPos.z);
+//	}
+//}
+
 void PacketManager::ProcessPlayerDead(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
 	auto pReq = (PLAYER_DEAD_REQ_PACKET*)pPacket_;
@@ -903,21 +983,15 @@ void PacketManager::ProcessPlayerDead(UINT32 clientIndex_, UINT16 packetSize_, c
 	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
 	if (pRoom)
 	{
-		pUser->SetPosition(pReq->respawnPos); // 서버 좌표 시체 위치 -> 부활 위치 갱신
-		Vector3 p;
-		p.x = 0; p.y = 0; p.z = 0;
-		PLAYER_STATUS_NTF_PACKET statusPkt;
-		statusPkt.userUUID = clientIndex_;
-		statusPkt.newState = eState::Teleport;
-		statusPkt.targetDir = pReq->respawnPos; // 부활 좌표를 담음
-		statusPkt.powerOrTime = 0.0f;
-		statusPkt.isPull = 0;
-		statusPkt.casterPos = p;
+		pUser->SetPosition(pReq->respawnPos); // 서버 좌표 부활 위치 갱신
 
-		pRoom->BroadcastPacket(statusPkt.PacketLength, (char*)&statusPkt);
+		PLAYER_DEAD_NTF_PACKET ntfPkt;
+		ntfPkt.userUUID = clientIndex_;
+		ntfPkt.respawnPos = pReq->respawnPos;
 
-		printf("[Respawn] User %d Respawned at: %.2f, %.2f, %.2f\n",
-			clientIndex_, pReq->respawnPos.x, pReq->respawnPos.y, pReq->respawnPos.z);
+		pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+
+		printf("[Respawn] User %d Dead & Respawn Broadcast!\n", clientIndex_);
 	}
 }
 
@@ -1167,7 +1241,17 @@ void PacketManager::UDPRecvThread()
 					case PACKET_ID::MONSTER_MOVEMENT:
 					{
 						auto pPkt = (MONSTER_MOVEMENT_PACKET*)buf;
-						clientIndex = (UINT32)pPkt->userUUID;
+
+						auto pUser = mUserManager->GetUserByConnIdx(pPkt->userUUID);
+						if (pUser != nullptr)
+						{
+							clientIndex = pUser->GetNetConnIdx();
+						}
+						else
+						{
+							printf("[UDP Error] Monster Movement: User not found with UUID %lld\n", pPkt->userUUID);
+							continue;
+						}
 						break;
 					}
 					// UDP로 추가되는 패킷은 여기에 case 추가

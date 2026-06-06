@@ -41,18 +41,17 @@ public:
 		mGimmickManager.LoadMapData(path, roomNum);
 	}
 
-	// Room.h 내부 EnterUser 함수 구현 수정
 	UINT16 EnterUser(User* pNewUser)
 	{
 		std::lock_guard<std::recursive_mutex> guard(mLock);
 
-		// 1. 방 정원 체크
+		// 방 정원 체크
 		if (mCurrentUserCount >= mMaxUserCount)
 		{
 			return (UINT16)ERROR_CODE::ENTER_ROOM_FULL_USER;
 		}
 
-		// 2. 빈 슬롯에 유저 등록
+		// 빈 슬롯에 유저 등록
 		int slotIndex = -1;
 		for (int i = 0; i < mMaxUserCount; ++i)
 		{
@@ -69,37 +68,34 @@ public:
 		pNewUser->SetDomainState(User::DOMAIN_STATE::ROOM);
 		pNewUser->EnterRoom(mRoomNum);
 
-		// ---------------------------------------------------------
-		// 3. 상호 동기화 (Mutual Notification) 핵심 로직
-		// ---------------------------------------------------------
-
-		// 신규 유저용 응답 패킷 준비 (본인에게 성공 알림)
-		// P_RoomEnterResponse 등 기존 응답 처리는 PacketManager에서 수행됨을 전제
-
 		for (auto pExistingUser : mUserList)
 		{
 			if (pExistingUser == nullptr || pExistingUser == pNewUser) continue;
 
-			// A. 기존 유저들에게 -> "신규 유저(pNewUser) 정보"를 전송
+			// 기존 유저들에게 -> 신규 유저 정보를 전송
 			ROOM_USER_INFO_NTF_PACKET ntfToOld;
 			ntfToOld.userUUID = pNewUser->GetNetConnIdx();
 			CopyUserID(ntfToOld.userID, pNewUser->GetUserId());
 			ntfToOld.position = pNewUser->GetPosition();
 			ntfToOld.rotation = pNewUser->GetRotation();
 
+			ntfToOld.characterID = pExistingUser->GetCharacterID();
+
 			SendPacketFunc(pExistingUser->GetNetConnIdx(), ntfToOld.PacketLength, (char*)&ntfToOld);
 
-			// B. 신규 유저에게 -> "기존 유저(pExistingUser) 정보"를 전송
+			// 신규 유저에게 -> 기존 유저 정보를 전송
 			ROOM_USER_INFO_NTF_PACKET ntfToNew; // Packets.cs의 CREATE_MATCH_PLAYER 대응
 			ntfToNew.userUUID = pExistingUser->GetNetConnIdx();
 			CopyUserID(ntfToNew.userID, pExistingUser->GetUserId());
 			ntfToNew.position = pExistingUser->GetPosition();
 			ntfToNew.rotation = pExistingUser->GetRotation();
 
+			ntfToNew.characterID = pExistingUser->GetCharacterID();
+
 			SendPacketFunc(pNewUser->GetNetConnIdx(), ntfToNew.PacketLength, (char*)&ntfToNew);
 		}
 
-		// 4. 유저 목록에 추가
+		// 유저 목록에 추가
 		mUserList.push_back(pNewUser);
 		mCurrentUserCount++;
 
@@ -128,6 +124,7 @@ public:
 			CopyUserID(ntfToNew.userID, pOther->GetUserId());
 			ntfToNew.position = pOther->GetPosition();
 			ntfToNew.rotation = pOther->GetRotation();
+			ntfToNew.characterID = pOther->GetCharacterID();
 
 			SendPacketFunc(pTargetUser->GetNetConnIdx(), ntfToNew.PacketLength, (char*)&ntfToNew);
 			printf("[Sync] 유저 %d에게 기존 유저 %d 정보 전송\n", pTargetUser->GetNetConnIdx(), pOther->GetNetConnIdx());
@@ -139,6 +136,8 @@ public:
 		CopyUserID(ntfToOld.userID, pTargetUser->GetUserId());
 		ntfToOld.position = pTargetUser->GetPosition();
 		ntfToOld.rotation = pTargetUser->GetRotation();
+
+		ntfToOld.characterID = pTargetUser->GetCharacterID();
 
 		for (auto pOther : mUserList)
 		{
@@ -609,6 +608,11 @@ public:
 		mIsEscaped[slotIdx] = true;
 		printf("[Room %d] User %s arrived at escape zone.\n", mRoomNum, user->GetUserId().c_str());
 
+		PLAYER_STATUS_NTF_PACKET escapeNtf;
+		escapeNtf.userUUID = user->GetNetConnIdx();
+		escapeNtf.newState = eState::State_Escape;
+		BroadcastPacket(escapeNtf.PacketLength, (char*)&escapeNtf);
+
 		// 3. 방에 있는 전원이 탈출했는지 체크 (CheckAllEscaped 로직)
 		bool allEscaped = true;
 		for (int i = 0; i < mMaxUserCount; ++i)
@@ -667,6 +671,10 @@ public:
 	void ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT_REQUEST_PACKET* pReq)
 	{
 		mGimmickManager.ProcessGimmickInteract(pUser, pReq, this);
+	}
+	void ResetGimmicks(int count, int* gimmickIDs)
+	{
+		mGimmickManager.ResetGimmicks(count, gimmickIDs);
 	}
 
 	void BroadcastPacketInRange(int len, char* pkt, Vector3 center, float range)

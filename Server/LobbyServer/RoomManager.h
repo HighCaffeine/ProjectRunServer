@@ -28,6 +28,16 @@ public:
 		}
 	}
 
+	void ClearRoom(INT32 roomNumber_)
+	{
+		auto pRoom = GetRoomByNumber(roomNumber_);
+		if (pRoom != nullptr)
+		{
+			pRoom->Init(roomNumber_, pRoom->GetMaxUserCount());
+			printf("[RoomManager] Room Delete : %d \n", roomNumber_);
+		}
+	}
+
 	UINT GetMaxRoomCount() { return mMaxRoomCount; }
 		
 	UINT16 EnterUser(INT32 roomNumber_, User* user_)

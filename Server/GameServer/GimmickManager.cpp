@@ -1,6 +1,37 @@
 #include "GimmickManager.h"
 #include "Room.h"
 
+void GimmickManager::ResetGimmicks(int count, int* gimmickIDs)
+{
+	std::lock_guard<std::recursive_mutex> guard(mGimmickLock);
+
+	for (int i = 0; i < count; i++)
+	{
+		int id = gimmickIDs[i];
+		auto it = mGimmicks.find(id);
+		if (it != mGimmicks.end())
+		{
+			ServerGimmickData& gimmick = it->second;
+			gimmick.position = gimmick.startPos;
+			gimmick.currentState = 0;
+
+			if (gimmick.properties.find("HP") != gimmick.properties.end()) 
+			{
+				gimmick.hp = (int)gimmick.properties["HP"];
+			}
+			else 
+			{
+				gimmick.hp = 1;
+			}
+
+			gimmick.isInteracting = false;
+			gimmick.interactorUUIDs.clear();
+			gimmick.totalDirX = 0.0f;
+			gimmick.totalDirZ = 0.0f;
+		}
+	}
+	printf("[GimmickManager] %d개 기믹 서버 상태 리셋.\n", count);
+}
 void GimmickManager::LoadMapData(const std::string& path, INT32 mapNum)
 {
 	std::lock_guard<std::recursive_mutex> guard(mGimmickLock);
@@ -68,6 +99,10 @@ void GimmickManager::LoadMapData(const std::string& path, INT32 mapNum)
 				data.startPos.x = spos.HasMember("x") ? spos["x"].GetFloat() : 0.0f;
 				data.startPos.y = spos.HasMember("y") ? spos["y"].GetFloat() : 0.0f;
 				data.startPos.z = spos.HasMember("z") ? spos["z"].GetFloat() : 0.0f;
+			}
+			else
+			{
+				data.startPos = data.position;
 			}
 
 			// EndPos 파싱 (있는 경우에만)

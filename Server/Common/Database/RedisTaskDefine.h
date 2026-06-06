@@ -32,6 +32,8 @@ enum class RedisTaskID : uint16_t
     REQUEST_VERIFY_TOKEN = 1013,
     RESPONSE_VERIFY_TOKEN = 1014,
 
+    REQUEST_ROOM_DELETE = 1020,
+
     // --- 3. Inventory ---
     REQUEST_LOAD_INVENTORY = 1091,
     RESPONSE_LOAD_INVENTORY = 1092,

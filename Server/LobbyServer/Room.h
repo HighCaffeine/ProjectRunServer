@@ -23,6 +23,14 @@ public:
 		mMaxUserCount = maxUserCount_;
 		mSlots.assign(maxUserCount_, nullptr);
 		mIsReady.assign(maxUserCount_, false);
+
+		mCharIDs.assign(maxUserCount_, 0);
+		if (maxUserCount_ > 1) mCharIDs[1] = 1;
+
+		mCurrentUserCount = 0;
+		mHostUUID = -1;
+		mIsPlaying = false;
+		memset(mTitle, 0, sizeof(mTitle));
 	}
 
 	UINT16 EnterUser(User* pNewUser)
@@ -53,15 +61,19 @@ public:
 			User* pExistingUser = mSlots[i];
 			if (pExistingUser == nullptr || pExistingUser == pNewUser) continue;
 
-			ROOM_USER_INFO_NTF_PACKET ntfToOld;
-			ntfToOld.userUUID = pNewUser->GetNetConnIdx();
-			CopyUserID(ntfToOld.userID, pNewUser->GetUserId());
-			SendPacketFunc(pExistingUser->GetNetConnIdx(), ntfToOld.PacketLength, (char*)&ntfToOld);
-
+			// 기존 유저 → 새 유저에게 기존 유저 정보 전송
 			ROOM_USER_INFO_NTF_PACKET ntfToNew;
 			ntfToNew.userUUID = pExistingUser->GetNetConnIdx();
 			CopyUserID(ntfToNew.userID, pExistingUser->GetUserId());
+			ntfToNew.characterID = mCharIDs[i];
 			SendPacketFunc(pNewUser->GetNetConnIdx(), ntfToNew.PacketLength, (char*)&ntfToNew);
+
+			// 새 유저 → 기존 유저에게 새 유저 정보 전송
+			ROOM_USER_INFO_NTF_PACKET ntfToOld;
+			ntfToOld.userUUID = pNewUser->GetNetConnIdx();
+			CopyUserID(ntfToOld.userID, pNewUser->GetUserId());
+			ntfToOld.characterID = mCharIDs[slotIndex];
+			SendPacketFunc(pExistingUser->GetNetConnIdx(), ntfToOld.PacketLength, (char*)&ntfToOld);
 		}
 
 		mCurrentUserCount++;
@@ -252,6 +264,54 @@ public:
 		}
 	}
 
+	INT32 GetHostCharID()
+	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+		for (int i = 0; i < mMaxUserCount; ++i)
+		{
+			if (mSlots[i] != nullptr && mSlots[i]->GetNetConnIdx() == mHostUUID)
+			{
+				return mCharIDs[i];
+			}
+		}
+		return 0;
+	}
+
+	INT32 GetGuestCharID()
+	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+		for (int i = 0; i < mMaxUserCount; ++i)
+		{
+			if (mSlots[i] != nullptr && mSlots[i]->GetNetConnIdx() != mHostUUID)
+			{
+				return mCharIDs[i];
+			}
+		}
+		return 1;
+	}
+
+	void SetUserCharID(User* pUser, INT32 charID)
+	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+		for (int i = 0; i < mMaxUserCount; ++i)
+		{
+			if (mSlots[i] == pUser)
+			{
+				mCharIDs[i] = charID;
+				break;
+			}
+		}
+	}
+
+	// 슬롯 번호로 캐릭터 ID 꺼내오는 함수 (목록 전송용)
+	INT32 GetCharacterIDBySlot(int slotIndex)
+	{
+		std::lock_guard<std::recursive_mutex> guard(mLock);
+		if (slotIndex < 0 || slotIndex >= mMaxUserCount) return 0;
+		return mCharIDs[slotIndex];
+	}
+
+	INT64 GetHostUUID() { return mHostUUID; }
 	void Update(float dt) {}
 
 	std::function<void(UINT32, UINT32, char*)> SendPacketFunc;
@@ -259,6 +319,9 @@ public:
 	bool GetIsPlaying() { return mIsPlaying; }
 	void SetIsPlaying(bool isPlaying) { mIsPlaying = isPlaying; }
 private:
+	std::vector<INT32> mCharIDs;
+	INT64 mHostUUID = -1;
+	//INT32 mCharIDs[2] = { 0, 1 };
 
 	std::recursive_mutex mLock;
 	INT32 mRoomNum = -1;
@@ -271,5 +334,4 @@ private:
 
 	std::vector<User*> mSlots;
 	std::vector<bool> mIsReady;
-	INT64 mHostUUID = -1;
 };
