@@ -1,7 +1,7 @@
 #include "GimmickManager.h"
 #include "Room.h"
 
-void GimmickManager::ResetGimmicks(int count, int* gimmickIDs)
+void GimmickManager::ResetGimmicks(int count, int* gimmickIDs, Room* pRoom)
 {
 	std::lock_guard<std::recursive_mutex> guard(mGimmickLock);
 
@@ -9,28 +9,34 @@ void GimmickManager::ResetGimmicks(int count, int* gimmickIDs)
 	{
 		int id = gimmickIDs[i];
 		auto it = mGimmicks.find(id);
-		if (it != mGimmicks.end())
+		if (it == mGimmicks.end()) continue;
+
+		ServerGimmickData& gimmick = it->second;
+		gimmick.position = gimmick.startPos;
+		gimmick.currentState = 0;
+		gimmick.hp = (gimmick.properties.count("HP")) ? (int)gimmick.properties["HP"] : 1;
+		gimmick.isInteracting = false;
+		gimmick.interactorUUIDs.clear();
+		gimmick.totalDirX = 0.0f;
+		gimmick.totalDirZ = 0.0f;
+
+		// 클라이언트에 리셋 알림
+		if (pRoom != nullptr)
 		{
-			ServerGimmickData& gimmick = it->second;
-			gimmick.position = gimmick.startPos;
-			gimmick.currentState = 0;
+			PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+			ntfPkt.activeUUID = -1;
+			ntfPkt.gimmickID = gimmick.gimmickID;
+			ntfPkt.gimmickKey = gimmick.type;
+			ntfPkt.state = (UINT8)eGimmickState::Restore;
+			ntfPkt.param = 0.0f;
+			ntfPkt.targetPos = gimmick.startPos;
+			auto now = std::chrono::system_clock::now();
+			ntfPkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
-			if (gimmick.properties.find("HP") != gimmick.properties.end()) 
-			{
-				gimmick.hp = (int)gimmick.properties["HP"];
-			}
-			else 
-			{
-				gimmick.hp = 1;
-			}
-
-			gimmick.isInteracting = false;
-			gimmick.interactorUUIDs.clear();
-			gimmick.totalDirX = 0.0f;
-			gimmick.totalDirZ = 0.0f;
+			pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 		}
 	}
-	printf("[GimmickManager] %d개 기믹 서버 상태 리셋.\n", count);
+	printf("[GimmickManager] %d개 기믹 초기화 완료.\n", count);
 }
 void GimmickManager::LoadMapData(const std::string& path, INT32 mapNum)
 {

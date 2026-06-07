@@ -24,7 +24,7 @@ public:
 	GimmickManager() = default;
 	~GimmickManager() = default;
 
-	void ResetGimmicks(int count, int* gimmickIDs);
+	void ResetGimmicks(int count, int* gimmickIDs, Room* pRoom);
 	void LoadMapData(const std::string& path, INT32 mapNum);
 	void ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT_REQUEST_PACKET* pReq, Room* pRoom);
 	void UpdateGimmicks(float dt, Room* pRoom);
