@@ -90,7 +90,7 @@ private:
 	void ProcessPlayerStateChange(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	void ProcessDungeonEscape(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
-
+	void ProcessDungeonReturnVillage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessSceneSync(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 
 	void ProcessPlayerReady(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);

@@ -37,6 +37,7 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_MOVEMENT] = &PacketManager::ProcessPlayerMovement;
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_STATUS_NTF] = &PacketManager::ProcessPlayerStateChange;
 	mRecvFuntionDictionary[(int)PACKET_ID::DUNGEON_ESCAPE_REQ] = &PacketManager::ProcessDungeonEscape;
+	mRecvFuntionDictionary[(int)PACKET_ID::DUNGEON_RETURN_VILLAGE_REQ] = &PacketManager::ProcessDungeonReturnVillage;
 	mRecvFuntionDictionary[(int)PACKET_ID::SCENE_SYNC_REQ] = &PacketManager::ProcessSceneSync;
 
 	mRecvFuntionDictionary[(int)PACKET_ID::PLAYER_READY_REQUEST] = &PacketManager::ProcessPlayerReady;
@@ -769,7 +770,19 @@ void PacketManager::ProcessDungeonEscape(UINT32 clientIndex_, UINT16 packetSize_
 	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
 	if (pRoom)
 	{
-		pRoom->ProcessEscapeRequest(pUser);
+		pRoom->ProcessEscapeRequest(pUser, pPacket_);
+	}
+}
+
+void PacketManager::ProcessDungeonReturnVillage(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
+{
+	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
+	if (!pUser) return;
+
+	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+	if (pRoom)
+	{
+		pRoom->HandleDungeonReturnVillageReq(pPacket_);
 	}
 }
 

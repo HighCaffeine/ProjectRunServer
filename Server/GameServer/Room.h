@@ -106,6 +106,11 @@ public:
 
 		BroadcastHostInfo();
 
+		if (mCurrentUserCount >= mMaxUserCount)
+		{
+			mRoomStartTime = std::chrono::system_clock::now();
+		}
+
 
 		return (UINT16)ERROR_CODE::NONE;
 	}
@@ -592,11 +597,10 @@ public:
 		}
 	}
 
-	void ProcessEscapeRequest(User* user)
+	void ProcessEscapeRequest(User* user, char* pPacket)
 	{
 		std::lock_guard<std::recursive_mutex> guard(mLock);
 
-		// 1. 패킷을 보낸 유저가 몇 번 슬롯인지 찾기
 		int slotIdx = -1;
 		for (int i = 0; i < mMaxUserCount; ++i)
 		{
@@ -608,20 +612,26 @@ public:
 		}
 		if (slotIdx == -1) return;
 
-		// 2. 해당 유저 탈출 완료 마킹
 		mIsEscaped[slotIdx] = true;
 		printf("[Room %d] User %s arrived at escape zone.\n", mRoomNum, user->GetUserId().c_str());
+
+		// 패킷에서 통계 누적 (각자 자기 것만 보내므로 += 로 합산)
+		DUNGEON_ESCAPE_REQ_PACKET* req = reinterpret_cast<DUNGEON_ESCAPE_REQ_PACKET*>(pPacket);
+		mAccumP1Push += req->p1Push;
+		mAccumP1Pull += req->p1Pull;
+		mAccumP1Fall += req->p1Fall;
+		mAccumP2Push += req->p2Push;
+		mAccumP2Pull += req->p2Pull;
+		mAccumP2Fall += req->p2Fall;
 
 		PLAYER_STATUS_NTF_PACKET escapeNtf;
 		escapeNtf.userUUID = user->GetNetConnIdx();
 		escapeNtf.newState = eState::State_Escape;
 		BroadcastPacket(escapeNtf.PacketLength, (char*)&escapeNtf);
 
-		// 3. 방에 있는 전원이 탈출했는지 체크 (CheckAllEscaped 로직)
 		bool allEscaped = true;
 		for (int i = 0; i < mMaxUserCount; ++i)
 		{
-			// 접속 중인 슬롯(nullptr 아님)인데 아직 안 들어왔다면 false
 			if (mSlots[i] != nullptr && !mIsEscaped[i])
 			{
 				allEscaped = false;
@@ -629,20 +639,41 @@ public:
 			}
 		}
 
-		// 4. 모두 모였다면 클리어 처리
 		if (allEscaped && mCurrentUserCount > 0)
 		{
 			printf("[Room %d] All users escaped! Dungeon Cleared.\n", mRoomNum);
 
-			// 던전 클리어 패킷 브로드캐스트
 			DUNGEON_CLEAR_NTF_PACKET clearPkt;
+			auto end = std::chrono::system_clock::now();
+			clearPkt.clearTimeSeconds = static_cast<INT32>(
+				std::chrono::duration_cast<std::chrono::seconds>(end - mRoomStartTime).count()
+				);
+
+			// 누적된 값 사용
+			clearPkt.p1Push = mAccumP1Push;
+			clearPkt.p1Pull = mAccumP1Pull;
+			clearPkt.p1Fall = mAccumP1Fall;
+			clearPkt.p2Push = mAccumP2Push;
+			clearPkt.p2Pull = mAccumP2Pull;
+			clearPkt.p2Fall = mAccumP2Fall;
+
 			BroadcastPacket(clearPkt.PacketLength, (char*)&clearPkt);
 
-			// 상태 초기화 (다음 게임을 위해)
+			// 초기화
 			std::fill(mIsReady.begin(), mIsReady.end(), false);
 			std::fill(mIsEscaped.begin(), mIsEscaped.end(), false);
 			mCountdownTimer = -1.0f;
+
+			// 누적 변수도 초기화 (다음 게임 대비)
+			mAccumP1Push = mAccumP1Pull = mAccumP1Fall = 0;
+			mAccumP2Push = mAccumP2Pull = mAccumP2Fall = 0;
 		}
+	}
+
+	void HandleDungeonReturnVillageReq(char* pPacket)
+	{
+		DUNGEON_RETURN_VILLAGE_NTF_PACKET ntf;
+		BroadcastPacket(ntf.PacketLength, (char*)&ntf);
 	}
 
 	void SyncRoomUsers(User* user_)
@@ -728,7 +759,15 @@ private:
 #endif
 	}
 
+	INT32 mAccumP1Push = 0;
+	INT32 mAccumP1Pull = 0;
+	INT32 mAccumP1Fall = 0;
+	INT32 mAccumP2Push = 0;
+	INT32 mAccumP2Pull = 0;
+	INT32 mAccumP2Fall = 0;
+
 	std::unordered_map<int, ServerGimmickData> mGimmicks;
+	std::chrono::system_clock::time_point mRoomStartTime;
 
 	Vector3 bossLinePos;
 
