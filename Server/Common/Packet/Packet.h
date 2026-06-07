@@ -485,6 +485,7 @@ struct MONSTER_MOVEMENT_PACKET : public PACKET_HEADER
 
 struct MONSTER_STATE_PACKET : public PACKET_HEADER
 {
+	INT64 userUUID;
 	INT32 monsterID;
 	UINT8 newState;
 	Vector3 targetDir;

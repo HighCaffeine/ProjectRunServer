@@ -79,7 +79,7 @@ public:
 			ntfToOld.position = pNewUser->GetPosition();
 			ntfToOld.rotation = pNewUser->GetRotation();
 
-			ntfToOld.characterID = pExistingUser->GetCharacterID();
+			ntfToOld.characterID = pNewUser->GetCharacterID();
 
 			SendPacketFunc(pExistingUser->GetNetConnIdx(), ntfToOld.PacketLength, (char*)&ntfToOld);
 
@@ -164,7 +164,7 @@ public:
 	{
 		Npc* newNpc = CreateNpc();
 		newNpc->EnterRoom(mRoomNum);
-		NotifyUserEnter(newNpc->GetNetConnIdx(), newNpc->GetUserId());
+		//NotifyUserEnter(newNpc->GetNetConnIdx(), newNpc->GetUserId());
 		return (UINT16)ERROR_CODE::NONE;
 	}
 
@@ -262,11 +262,15 @@ public:
 		SendToAllUser(sizeof(roomChatNtfyPkt), (char*)&roomChatNtfyPkt, clientIndex_, false);
 	}
 
-	void NotifyUserEnter(INT32 clientIndex_, const std::string& userID)
+	void NotifyUserEnter(INT32 clientIndex_, const std::string& userID, INT32 charID)
 	{
 		ROOM_NEW_USER_NTF_PACKET roomNewUserNtfPkt;
 		roomNewUserNtfPkt.userUUID = clientIndex_;
+
 		CopyUserID(roomNewUserNtfPkt.userID, userID);
+		roomNewUserNtfPkt.characterID = charID;
+		printf("[SERVER_DEBUG] NTP 패킷 전송 전 -> UUID: %lld, Name: %s, CharID: %d\n",
+		roomNewUserNtfPkt.userUUID, roomNewUserNtfPkt.userID, roomNewUserNtfPkt.characterID);
 		bool EXCEPT_ME = true;
 		SendToAllUser(roomNewUserNtfPkt.PacketLength, (char*)&roomNewUserNtfPkt, clientIndex_, EXCEPT_ME);
 	}
@@ -655,6 +659,7 @@ public:
 			CopyUserID(infoForNew.userID, pRoomUser->GetUserId());
 			infoForNew.position = pRoomUser->GetPosition();
 			infoForNew.rotation = pRoomUser->GetRotation();
+			infoForNew.characterID = pRoomUser->GetCharacterID();
 			SendPacketFunc(user_->GetNetConnIdx(), infoForNew.PacketLength, (char*)&infoForNew);
 
 			// 기존 유저에게 -> 방금 던전 로딩이 끝난 유저의 모습을 보여줌
@@ -663,6 +668,7 @@ public:
 			CopyUserID(infoForOld.userID, user_->GetUserId());
 			infoForOld.position = user_->GetPosition();
 			infoForOld.rotation = user_->GetRotation();
+			infoForOld.characterID = user_->GetCharacterID();
 			SendPacketFunc(pRoomUser->GetNetConnIdx(), infoForOld.PacketLength, (char*)&infoForOld);
 		}
 	}

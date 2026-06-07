@@ -384,6 +384,7 @@ void PacketManager::ProcessGameServerAuth(UINT32 clientIndex_, UINT16 packetSize
 	if (pUser == nullptr) return;
 
 	pUser->SetLogin(pReqPacket->userName);
+	pUser->SetCharacterID(pReqPacket->characterID);
 
 	// 1. 클라이언트가 보낸 토큰을 Redis 검증을 위해 구조체에 복사
 	RedisAuthTokenReq dbReq;
@@ -634,8 +635,8 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 
 
 	// 방안 유저들에게 입장하는 유저 정보 전송
-	pRoom->NotifyUserEnter(clientIndex_, pReqUser->GetUserId());
-
+	//pRoom->NotifyUserEnter(clientIndex_, pReqUser->GetUserId());
+	pRoom->NotifyUserEnter(clientIndex_, pReqUser->GetUserId(), pReqUser->GetCharacterID());
 	//인벤토리 처리
 	/*if (enterResult == (UINT16)ERROR_CODE::NONE)
 	{
@@ -1185,7 +1186,7 @@ void PacketManager::UDPRecvThread()
 			m_TotalRecvBytes += recvLen;
 			m_GrandTotalSendBytes += m_TotalRecvBytes;
 
-			printf("[UDP] Packet Recv! ID:%d, Len:%d\n", pHeader->PacketId, recvLen);
+			//printf("[UDP] Packet Recv! ID:%d, Len:%d\n", pHeader->PacketId, recvLen);
 
 			if (pHeader->PacketId == (UINT16)PACKET_ID::PLAYER_MOVEMENT)
 			{
@@ -1212,10 +1213,30 @@ void PacketManager::UDPRecvThread()
 						pUser->isUdpActive = true;
 					}
 				}
+			}
+			else if (pHeader->PacketId == (UINT16)PACKET_ID::MONSTER_MOVEMENT)
+			{
+				auto pMovePkt = (MONSTER_MOVEMENT_PACKET*)buf;
+
+				if (pMovePkt->userUUID < 0 || pMovePkt->userUUID >= mUserManager->GetMaxUserCnt())
+				{
+					continue;
+				}
+
+				auto pUser = mUserManager->GetUserByConnIdx(pMovePkt->userUUID);
+				if (pUser)
+				{
+					PacketInfo pktInfo;
+					pktInfo.ClientIndex = (UINT32)pMovePkt->userUUID;
+					pktInfo.PacketId = pHeader->PacketId;
+					pktInfo.DataSize = recvLen;
+					pktInfo.pDataPtr = new char[recvLen];
+					memcpy(pktInfo.pDataPtr, buf, recvLen);
+					PushSystemPacket(pktInfo);
+				}
 				else
 				{
-					printf("[UDP Error] User Not Found! UUID: %lld / MaxUser: %d\n",
-						pMovePkt->userUUID, mUserManager->GetMaxUserCnt());
+					printf("[UDP MONSTER] pUser null! UUID=%lld\n", pMovePkt->userUUID);
 				}
 			}
 			else
@@ -1238,22 +1259,7 @@ void PacketManager::UDPRecvThread()
 						clientIndex = (UINT32)pPkt->userUUID;
 						break;
 					}
-					case PACKET_ID::MONSTER_MOVEMENT:
-					{
-						auto pPkt = (MONSTER_MOVEMENT_PACKET*)buf;
 
-						auto pUser = mUserManager->GetUserByConnIdx(pPkt->userUUID);
-						if (pUser != nullptr)
-						{
-							clientIndex = pUser->GetNetConnIdx();
-						}
-						else
-						{
-							printf("[UDP Error] Monster Movement: User not found with UUID %lld\n", pPkt->userUUID);
-							continue;
-						}
-						break;
-					}
 					// UDP로 추가되는 패킷은 여기에 case 추가
 					
 					default:
@@ -1360,6 +1366,7 @@ void PacketManager::ProcessMonsterMovement(UINT32 clientIndex_, UINT16 packetSiz
 	if (!pUser) return;
 
 	auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+
 	if (pRoom)
 	{
 		pRoom->BroadcastPacket(pReq->PacketLength, pPacket_);
