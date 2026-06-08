@@ -358,21 +358,29 @@ struct DUNGEON_ESCAPE_REQ_PACKET : public PACKET_HEADER
 	INT32 p1Push;
 	INT32 p1Pull;
 	INT32 p1Fall;
+	INT32 p1Destroy;   
+	INT32 p1FallKill;  
 	INT32 p2Push;
 	INT32 p2Pull;
 	INT32 p2Fall;
+	INT32 p2Destroy;  
+	INT32 p2FallKill; 
 	DUNGEON_ESCAPE_REQ_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::DUNGEON_ESCAPE_REQ) {}
 };
 
 struct DUNGEON_CLEAR_NTF_PACKET : public PACKET_HEADER
 {
-	INT32 clearTimeSeconds; // 서버가 계산한 클리어 타임
+	INT32 clearTimeSeconds;
 	INT32 p1Push;
 	INT32 p1Pull;
 	INT32 p1Fall;
+	INT32 p1Destroy;   
+	INT32 p1FallKill; 
 	INT32 p2Push;
 	INT32 p2Pull;
 	INT32 p2Fall;
+	INT32 p2Destroy;  
+	INT32 p2FallKill;  
 	DUNGEON_CLEAR_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::DUNGEON_CLEAR_NTF) {}
 };
 
@@ -429,6 +437,7 @@ struct PLAYER_STATUS_NTF_PACKET : public PACKET_HEADER
 	UINT8 isPull;
 	Vector3 casterPos;
 	INT64 timestamp;
+	INT64 casterUUID;
 	PLAYER_STATUS_NTF_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::PLAYER_STATUS_NTF) {}
 };
 

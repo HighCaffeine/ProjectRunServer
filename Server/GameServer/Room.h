@@ -106,12 +106,6 @@ public:
 
 		BroadcastHostInfo();
 
-		if (mCurrentUserCount >= mMaxUserCount)
-		{
-			mRoomStartTime = std::chrono::system_clock::now();
-		}
-
-
 		return (UINT16)ERROR_CODE::NONE;
 	}
 
@@ -527,6 +521,8 @@ public:
 			if (mCountdownTimer <= 0)
 			{
 				mCountdownTimer = -1.0f;
+
+				mRoomStartTime = std::chrono::system_clock::now();
 				// 던전 진입 명령 (첫 번째 던전 MapId = 1)
 				GAME_START_NTF_PACKET startNtf;
 				startNtf.mapId = 1;
@@ -623,6 +619,10 @@ public:
 		mAccumP2Push += req->p2Push;
 		mAccumP2Pull += req->p2Pull;
 		mAccumP2Fall += req->p2Fall;
+		mAccumP1Destroy += req->p1Destroy;
+		mAccumP1FallKill += req->p1FallKill;
+		mAccumP2Destroy += req->p2Destroy;
+		mAccumP2FallKill += req->p2FallKill;
 
 		PLAYER_STATUS_NTF_PACKET escapeNtf;
 		escapeNtf.userUUID = user->GetNetConnIdx();
@@ -656,6 +656,10 @@ public:
 			clearPkt.p2Push = mAccumP2Push;
 			clearPkt.p2Pull = mAccumP2Pull;
 			clearPkt.p2Fall = mAccumP2Fall;
+			clearPkt.p1Destroy = mAccumP1Destroy;
+			clearPkt.p1FallKill = mAccumP1FallKill;
+			clearPkt.p2Destroy = mAccumP2Destroy;
+			clearPkt.p2FallKill = mAccumP2FallKill;
 
 			BroadcastPacket(clearPkt.PacketLength, (char*)&clearPkt);
 
@@ -667,6 +671,8 @@ public:
 			// 누적 변수도 초기화 (다음 게임 대비)
 			mAccumP1Push = mAccumP1Pull = mAccumP1Fall = 0;
 			mAccumP2Push = mAccumP2Pull = mAccumP2Fall = 0;
+			mAccumP1Destroy = mAccumP1FallKill = 0;
+			mAccumP2Destroy = mAccumP2FallKill = 0;
 		}
 	}
 
@@ -711,7 +717,7 @@ public:
 	}
 	void ResetGimmicks(int count, int* gimmickIDs)
 	{
-		mGimmickManager.ResetGimmicks(count, gimmickIDs);
+		mGimmickManager.ResetGimmicks(count, gimmickIDs, this);
 	}
 
 	void BroadcastPacketInRange(int len, char* pkt, Vector3 center, float range)
@@ -762,9 +768,14 @@ private:
 	INT32 mAccumP1Push = 0;
 	INT32 mAccumP1Pull = 0;
 	INT32 mAccumP1Fall = 0;
+	INT32 mAccumP1Destroy = 0;
+	INT32 mAccumP1FallKill = 0;
+
 	INT32 mAccumP2Push = 0;
 	INT32 mAccumP2Pull = 0;
 	INT32 mAccumP2Fall = 0;
+	INT32 mAccumP2Destroy = 0;
+	INT32 mAccumP2FallKill = 0;
 
 	std::unordered_map<int, ServerGimmickData> mGimmicks;
 	std::chrono::system_clock::time_point mRoomStartTime;

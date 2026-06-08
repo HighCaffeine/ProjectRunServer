@@ -240,6 +240,23 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 			shouldBroadcastNow = true;
 		}
 
+		if (pReq->gimmickKey == (UINT8)eGimmickKey::Checkpoint)
+		{
+			PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
+			ntfPkt.activeUUID = pReq->activeUUID;
+			ntfPkt.gimmickID = pReq->gimmickID;
+			ntfPkt.gimmickKey = pReq->gimmickKey;
+			ntfPkt.state = pReq->state;
+			ntfPkt.param = pReq->param;
+			ntfPkt.targetPos = pReq->targetPos;
+			ntfPkt.timestamp = pReq->timestamp;
+
+			pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
+
+			printf("[Checkpoint] User %lld activated checkpoint: %.0f\n", pReq->activeUUID, pReq->param);
+			return;
+		}
+
 		/*if (gimmick.type == (int)eGimmickKey::MovePlatform)
 		{
 			if (gimmick.activationType == 1 && pReq->state == 1)
