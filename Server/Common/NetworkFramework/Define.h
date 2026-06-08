@@ -23,5 +23,6 @@ struct stOverlappedEx
 	WSABUF		m_wsaBuf;				//Overlapped I/O작업 버퍼
 	IOOperation m_eOperation;			//작업 동작 종류
 	UINT32 SessionIndex = 0;
+	char messageBuffer[MAX_SOCK_SENDBUF];
 };
 

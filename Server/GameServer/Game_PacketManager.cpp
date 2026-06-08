@@ -294,55 +294,108 @@ void PacketManager::RedisReqNotice(User& user, const std::string noticeMsg)
 }
 
 
+//void PacketManager::ProcessPacket()
+//{
+//	static auto lastCheckTime = std::chrono::steady_clock::now();
+//
+//	while (mIsRunProcessThread)
+//	{
+//		bool isIdle = true;
+//
+//		if (auto packetData = DequePacketData(); packetData.PacketId > (UINT16)PACKET_ID::SYS_END)
+//		{
+//			isIdle = false;
+//			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+//		}
+//
+//		if (auto packetData = DequeSystemPacketData(); packetData.PacketId != 0)
+//		{
+//			isIdle = false;
+//			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+//
+//			if (packetData.pDataPtr != nullptr)
+//			{
+//				delete[] packetData.pDataPtr;
+//			}
+//		}
+//
+//		if (auto task = mRedisMgr->TakeResponseTask(); task.TaskID != RedisTaskID::INVALID)
+//		{
+//			isIdle = false;
+//			ProcessRecvPacket(task.UserIndex, (UINT16)task.TaskID, task.DataSize, task.pData);
+//			task.Release();
+//		}
+//
+//		/*auto now = std::chrono::steady_clock::now();
+//		if (std::chrono::duration_cast<std::chrono::seconds>(now - lastCheckTime).count() >= 1)
+//		{
+//			lastCheckTime = now;
+//
+//			int cmdValue = -1;
+//			RedisTask task;
+//			task.TaskID = RedisTaskID::REQUEST_SHOP_UPDATE;
+//			task.DataSize = sizeof(int);
+//			task.pData = new char[sizeof(int)];
+//			memcpy(task.pData, &cmdValue, sizeof(int));
+//			mRedisMgr->PushTask(task);
+//		}*/
+//
+//		if(isIdle)
+//		{
+//			std::this_thread::yield();
+//		}
+//	}
+//}
+
 void PacketManager::ProcessPacket()
 {
-	static auto lastCheckTime = std::chrono::steady_clock::now();
-
 	while (mIsRunProcessThread)
 	{
 		bool isIdle = true;
 
-		if (auto packetData = DequePacketData(); packetData.PacketId > (UINT16)PACKET_ID::SYS_END)
+		// 1. TCP 패킷 처리
+		while (true)
 		{
+			auto packetData = DequePacketData();
+			if (packetData.PacketId <= (UINT16)PACKET_ID::SYS_END) break;
+
 			isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 		}
 
-		if (auto packetData = DequeSystemPacketData(); packetData.PacketId != 0)
+		// 2. 시스템 패킷 처리
+		while (true)
 		{
+			auto packetData = DequeSystemPacketData();
+			if (packetData.PacketId == 0) break;
+
 			isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
 
-			if (packetData.pDataPtr != nullptr)
-			{
-				delete[] packetData.pDataPtr;
-			}
+			FreeUdpBuffer(packetData.pDataPtr);
 		}
 
-		if (auto task = mRedisMgr->TakeResponseTask(); task.TaskID != RedisTaskID::INVALID)
+		// 3. Redis 응답 처리
+		while (true)
 		{
+			auto task = mRedisMgr->TakeResponseTask();
+			if (task.TaskID == RedisTaskID::INVALID) break;
+
 			isIdle = false;
 			ProcessRecvPacket(task.UserIndex, (UINT16)task.TaskID, task.DataSize, task.pData);
 			task.Release();
 		}
 
-		/*auto now = std::chrono::steady_clock::now();
-		if (std::chrono::duration_cast<std::chrono::seconds>(now - lastCheckTime).count() >= 1)
+		// 4. 할 일이 없었을 때만 아주 잠깐 쉬기 (서버 성능 핵심!)
+		if (isIdle)
 		{
-			lastCheckTime = now;
-
-			int cmdValue = -1;
-			RedisTask task;
-			task.TaskID = RedisTaskID::REQUEST_SHOP_UPDATE;
-			task.DataSize = sizeof(int);
-			task.pData = new char[sizeof(int)];
-			memcpy(task.pData, &cmdValue, sizeof(int));
-			mRedisMgr->PushTask(task);
-		}*/
-
-		if(isIdle)
-		{
-			std::this_thread::yield();
+			static int idleCount = 0;
+			if (++idleCount < 10)
+				std::this_thread::yield();
+			else {
+				idleCount = 0;
+				std::this_thread::sleep_for(std::chrono::microseconds(200)); // 1ms → 0.2ms
+			}
 		}
 	}
 }
@@ -1122,62 +1175,96 @@ void PacketManager::ProcessInventoryDBResult(UINT32 clientIndex_, UINT16 packetS
 }
 
 //50ms마다 게임 상태 업데이트
+//void PacketManager::LogicThread()
+//{
+//	auto nextTick = std::chrono::steady_clock::now();
+//	const auto tickInterval = std::chrono::milliseconds(20); // 50Hz (0.02s)
+//
+//	auto lastBandwidthCheckTime = std::chrono::steady_clock::now();
+//	while (mIsRunLogicThread) 
+//	{
+//		auto now = std::chrono::steady_clock::now();
+//
+//		if (now >= nextTick) 
+//		{
+//			// 모든 방(Room)의 물리 및 로직 업데이트
+//			// mRoomManager 내의 모든 Room을 순회하며 Update(0.02f) 호출
+//			for (int i = 0; i < mRoomManager->GetMaxRoomCount(); ++i) 
+//			{
+//				if (auto pRoom = mRoomManager->GetRoomByNumber(i)) 
+//				{
+//					pRoom->Update(FIXED_DELTA_TIME);
+//					
+//					//nav 사용 X
+//					//NavMeshManager::GetInstance()->UpdateTileCache(FIXED_DELTA_TIME);
+//				}
+//			}
+//
+//			nextTick += tickInterval;
+//		}
+//
+//		if (std::chrono::duration_cast<std::chrono::seconds>(now - lastBandwidthCheckTime).count() >= 1)
+//		{
+//			// 1초 동안 모인 데이터를 KB 단위로 변환 (현재 속도)
+//			double recvKBps = m_TotalRecvBytes / 1024.0;
+//			double sendKBps = m_TotalSendBytes / 1024.0;
+//
+//			// 누적 총 데이터를 MB 단위로 변환 (총 대역폭)
+//			double totalRecvMB = m_GrandTotalRecvBytes / (1024.0 * 1024.0);
+//			double totalSendMB = m_GrandTotalSendBytes / (1024.0 * 1024.0);
+//
+//			if (m_TotalRecvBytes > 0 || m_TotalSendBytes > 0)
+//			{
+//				spdlog::info("[Bandwidth] Speed - In: {:.2f} KB/s | Out: {:.2f} KB/s  ||  Total - In: {:.2f} MB | Out: {:.2f} MB",
+//					recvKBps, sendKBps, totalRecvMB, totalSendMB);
+//			}
+//
+//			m_TotalRecvBytes = 0;
+//			m_TotalSendBytes = 0;
+//
+//			// 타이머 갱신
+//			lastBandwidthCheckTime = now;
+//		}
+//
+//		// CPU 과점유 방지
+//		now = std::chrono::steady_clock::now();
+//		if (now < nextTick)
+//		{
+//			std::this_thread::sleep_for(nextTick - now);
+//		}
+//	}
+//}
+
 void PacketManager::LogicThread()
 {
-	auto nextTick = std::chrono::steady_clock::now();
-	const auto tickInterval = std::chrono::milliseconds(20); // 50Hz (0.02s)
+	using clock = std::chrono::steady_clock;
+	auto nextTick = clock::now();
+	const auto tickInterval = std::chrono::milliseconds(20);
 
-	auto lastBandwidthCheckTime = std::chrono::steady_clock::now();
-	while (mIsRunLogicThread) 
+	while (mIsRunLogicThread)
 	{
-		auto now = std::chrono::steady_clock::now();
-
-		if (now >= nextTick) 
+		// Update 먼저 실행
+		for (int i = 0; i < mRoomManager->GetMaxRoomCount(); ++i)
 		{
-			// 모든 방(Room)의 물리 및 로직 업데이트
-			// mRoomManager 내의 모든 Room을 순회하며 Update(0.02f) 호출
-			for (int i = 0; i < mRoomManager->GetMaxRoomCount(); ++i) 
+			if (auto pRoom = mRoomManager->GetRoomByNumber(i))
 			{
-				if (auto pRoom = mRoomManager->GetRoomByNumber(i)) 
+				if (pRoom->GetCurrentUserCount() > 0)
 				{
 					pRoom->Update(FIXED_DELTA_TIME);
-					
-					//nav 사용 X
-					//NavMeshManager::GetInstance()->UpdateTileCache(FIXED_DELTA_TIME);
 				}
 			}
-
-			nextTick += tickInterval;
 		}
 
-		if (std::chrono::duration_cast<std::chrono::seconds>(now - lastBandwidthCheckTime).count() >= 1)
-		{
-			// 1초 동안 모인 데이터를 KB 단위로 변환 (현재 속도)
-			double recvKBps = m_TotalRecvBytes / 1024.0;
-			double sendKBps = m_TotalSendBytes / 1024.0;
+		nextTick += tickInterval;
 
-			// 누적 총 데이터를 MB 단위로 변환 (총 대역폭)
-			double totalRecvMB = m_GrandTotalRecvBytes / (1024.0 * 1024.0);
-			double totalSendMB = m_GrandTotalSendBytes / (1024.0 * 1024.0);
-
-			if (m_TotalRecvBytes > 0 || m_TotalSendBytes > 0)
-			{
-				spdlog::info("[Bandwidth] Speed - In: {:.2f} KB/s | Out: {:.2f} KB/s  ||  Total - In: {:.2f} MB | Out: {:.2f} MB",
-					recvKBps, sendKBps, totalRecvMB, totalSendMB);
-			}
-
-			m_TotalRecvBytes = 0;
-			m_TotalSendBytes = 0;
-
-			// 타이머 갱신
-			lastBandwidthCheckTime = now;
-		}
-
-		// CPU 과점유 방지
-		now = std::chrono::steady_clock::now();
+		auto now = clock::now();
 		if (now < nextTick)
 		{
 			std::this_thread::sleep_for(nextTick - now);
+		}
+		else
+		{
+			nextTick = now;
 		}
 	}
 }
@@ -1197,7 +1284,7 @@ void PacketManager::UDPRecvThread()
 		{
 			auto pHeader = (PACKET_HEADER*)buf;
 			m_TotalRecvBytes += recvLen;
-			m_GrandTotalSendBytes += m_TotalRecvBytes;
+			m_GrandTotalSendBytes += recvLen;
 
 			//printf("[UDP] Packet Recv! ID:%d, Len:%d\n", pHeader->PacketId, recvLen);
 
@@ -1243,13 +1330,13 @@ void PacketManager::UDPRecvThread()
 					pktInfo.ClientIndex = (UINT32)pMovePkt->userUUID;
 					pktInfo.PacketId = pHeader->PacketId;
 					pktInfo.DataSize = recvLen;
-					pktInfo.pDataPtr = new char[recvLen];
+					pktInfo.pDataPtr = AllocUdpBuffer();
 					memcpy(pktInfo.pDataPtr, buf, recvLen);
 					PushSystemPacket(pktInfo);
 				}
 				else
 				{
-					printf("[UDP MONSTER] pUser null! UUID=%lld\n", pMovePkt->userUUID);
+					//printf("[UDP MONSTER] pUser null! UUID=%lld\n", pMovePkt->userUUID);
 				}
 			}
 			else
@@ -1353,7 +1440,7 @@ void PacketManager::ProcessMonsterDeadRequest(UINT32 clientIndex_, UINT16 packet
 		pNtf.monsterID = pReq->monsterID;
 
 		pRoom->BroadcastPacket(pNtf.PacketLength, (char*)&pNtf);
-		printf("[State Sync] Monster %d Dead\n", clientIndex_, pReq->monsterID);
+		//printf("[State Sync] Monster %d Dead\n", clientIndex_, pReq->monsterID);
 	}
 }
 
@@ -1368,7 +1455,7 @@ void PacketManager::ProcessMonsterStateChange(UINT32 clientIndex_, UINT16 packet
 	if (pRoom)
 	{
 		pRoom->BroadcastPacket(pReq->PacketLength, pPacket_);
-		printf("[State Sync] Monster %d changed state to %d\n", clientIndex_, pReq->newState);
+		//printf("[State Sync] Monster %d changed state to %d\n", clientIndex_, pReq->newState);
 	}
 }
 
@@ -1385,6 +1472,28 @@ void PacketManager::ProcessMonsterMovement(UINT32 clientIndex_, UINT16 packetSiz
 		pRoom->BroadcastPacket(pReq->PacketLength, pPacket_);
 	}
 }
+
+//UDP 풀링용
+
+char* PacketManager::AllocUdpBuffer()
+{
+	std::lock_guard<std::mutex> lock(mUdpPoolLock);
+	if (mUdpBufferPool.empty())
+	{
+		return new char[2048]; // 큐가 비었을 때만 새로 할당 (초기화 단계)
+	}
+	char* buf = mUdpBufferPool.back();
+	mUdpBufferPool.pop_back();
+	return buf;
+}
+
+void PacketManager::FreeUdpBuffer(char* buffer)
+{
+	if (buffer == nullptr) return;
+	std::lock_guard<std::mutex> lock(mUdpPoolLock);
+	mUdpBufferPool.push_back(buffer); // 다 쓴 버퍼를 다시 풀에 반납
+}
+
 
 Vector3 stringToVector3(const std::string& s) 
 {

@@ -120,6 +120,9 @@ private:
 	std::thread mUdpRecvThread;
 	void UDPRecvThread(); // UDP 패킷 수신 전용 함수
 
+	char* AllocUdpBuffer();
+	void FreeUdpBuffer(char* buffer);
+
 //거래, 상점 관련 비활성화
 #if 0
 	void ProcessTradeRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
@@ -136,6 +139,9 @@ private:
 	void ProcessMonsterDeadRequest(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessMonsterMovement(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 	void ProcessMonsterStateChange(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
+
+	std::mutex mUdpPoolLock;
+	std::vector<char*> mUdpBufferPool;
 
 	// UDP 주소로 유저를 찾기 위한 맵 
 	std::mutex mUdpMapLock;

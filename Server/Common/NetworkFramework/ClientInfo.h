@@ -179,11 +179,12 @@ public:
 	{	
 		auto sendOverlappedEx = new stOverlappedEx;
 		ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
+		sendOverlappedEx->m_wsaBuf.buf = sendOverlappedEx->messageBuffer;
 		sendOverlappedEx->m_wsaBuf.len = dataSize_;
-		sendOverlappedEx->m_wsaBuf.buf = new char[dataSize_];
-		CopyMemory(sendOverlappedEx->m_wsaBuf.buf, pMsg_, dataSize_);
 		sendOverlappedEx->m_eOperation = IOOperation::SEND;
 		
+		memcpy(sendOverlappedEx->m_wsaBuf.buf, pMsg_, dataSize_);
+
 		std::lock_guard<std::mutex> guard(mSendLock);
 
 		mSendDataqueue.push(sendOverlappedEx);
@@ -202,7 +203,7 @@ public:
 
 		std::lock_guard<std::mutex> guard(mSendLock);
 
-		delete[] mSendDataqueue.front()->m_wsaBuf.buf;
+		//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
 		delete mSendDataqueue.front();
 
 		mSendDataqueue.pop();
@@ -253,12 +254,12 @@ private:
 			return false;
 		}
 
-		opt = 0;
+		/*opt = 0;
 		if (SOCKET_ERROR == setsockopt(mSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&opt, sizeof(int)))
 		{
 			printf_s("[DEBUG] SO_RCVBUF change error: %d\n", GetLastError());
 			return false;
-		}
+		}*/
 
 		return true;
 	}

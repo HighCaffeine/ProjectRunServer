@@ -332,6 +332,10 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 {
 	std::lock_guard<std::recursive_mutex> guard(mGimmickLock);
 
+	auto now = std::chrono::system_clock::now();
+	INT64 nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+
+
 	for (auto& pair : mGimmicks)
 	{
 		ServerGimmickData& gimmick = pair.second;
@@ -354,8 +358,6 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					ntfPkt.state = (UINT8)eGimmickState::Restore;
 					ntfPkt.param = 0.0f;
 					ntfPkt.targetPos = { gimmick.position.x, gimmick.position.y, gimmick.position.z };
-					auto now = std::chrono::system_clock::now();
-					ntfPkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
 					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 					//pRoom->BroadcastPacketInRange(ntfPkt.PacketLength, (char*)&ntfPkt, ntfPkt.targetPos, 40.0f);

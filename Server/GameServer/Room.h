@@ -192,7 +192,7 @@ public:
 				break;
 			}
 		}
-		mUserList.remove(leaveUser_);
+		//mUserList.remove(leaveUser_);
 
 		--mCurrentUserCount;
 
@@ -347,18 +347,30 @@ public:
 
 	void Update(float dt)
 	{
-		std::lock_guard<std::recursive_mutex> guard(mLock);
-		// 물리 연산
-		for (auto pUser : mUserList)
-		{
-			if (pUser == nullptr) continue;
-			pUser->UpdateServerPhysics(dt);
-		}
+		//std::lock_guard<std::recursive_mutex> guard(mLock);
+		//// 물리 연산
+		//for (auto pUser : mUserList)
+		//{
+		//	if (pUser == nullptr) continue;
+		//	pUser->UpdateServerPhysics(dt);
+		//}
 
-		for (auto pNpc : mNpcList)
+		//for (auto pNpc : mNpcList)
+		//{
+		//	if (pNpc == nullptr) continue;
+		//	pNpc->UpdateServerPhysics(dt);
+		//}
+
+		struct PendingPacket { UINT32 targetIdx; std::vector<char> data; };
+		std::vector<PendingPacket> pendingPackets;
+
 		{
-			if (pNpc == nullptr) continue;
-			pNpc->UpdateServerPhysics(dt);
+			std::lock_guard<std::recursive_mutex> guard(mLock);
+			for (auto pMover : mUserList)
+			{
+				// 조건 체크 후 pendingPackets에 push_back
+			}
+			mGimmickManager.UpdateGimmicks(dt, this);  // 여기서 BroadcastPacket 호출도 같은 문제
 		}
 
 		// AOI 관리

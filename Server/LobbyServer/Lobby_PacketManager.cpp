@@ -259,6 +259,54 @@ void PacketManager::ProcessPacket()
 	}
 }
 
+//void PacketManager::ProcessPacket()
+//{
+//	while (mIsRunProcessThread)
+//	{
+//		bool isIdle = true;
+//
+//		// 1. TCP 패킷 처리
+//		while (true)
+//		{
+//			auto packetData = DequePacketData();
+//			if (packetData.PacketId <= (UINT16)PACKET_ID::SYS_END) break;
+//
+//			isIdle = false;
+//			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+//		}
+//
+//		// 2. 시스템 패킷 처리
+//		while (true)
+//		{
+//			auto packetData = DequeSystemPacketData();
+//			if (packetData.PacketId == 0) break;
+//
+//			isIdle = false;
+//			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+//
+//			if (packetData.pDataPtr != nullptr)
+//				delete[] packetData.pDataPtr;
+//		}
+//
+//		// 3. Redis 응답 처리
+//		while (true)
+//		{
+//			auto task = mRedisMgr->TakeResponseTask();
+//			if (task.TaskID == RedisTaskID::INVALID) break;
+//
+//			isIdle = false;
+//			ProcessRecvPacket(task.UserIndex, (UINT16)task.TaskID, task.DataSize, task.pData);
+//			task.Release();
+//		}
+//
+//		// 4. 할 일이 없었을 때만 아주 잠깐 쉬기 (서버 성능 핵심!)
+//		if (isIdle)
+//		{
+//			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+//		}
+//	}
+//}
+
 void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_)
 {
 	//printf("[Debug] Packet Received. Index: %d, ID: %d, Size: %d\n", clientIndex_, packetId_, packetSize_);
