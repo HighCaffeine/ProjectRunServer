@@ -46,6 +46,8 @@ public:
 			return false;
 		}
 
+		SetSocketOption();
+
 		return BindRecv();
 	}
 

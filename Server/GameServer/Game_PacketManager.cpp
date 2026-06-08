@@ -89,7 +89,7 @@ void PacketManager::CreateCompent(const UINT32 maxClient_)
 	LogManager::Init();
 		
 	UINT32 startRoomNummber = 0;
-	UINT32 maxRoomCount = 2;
+	UINT32 maxRoomCount = 10;
 	UINT32 maxRoomUserCount = 2;
 	mRoomManager = new RoomManager;
 	mRoomManager->SendPacketFunc = SendPacketFunc;
@@ -349,6 +349,7 @@ void PacketManager::RedisReqNotice(User& user, const std::string noticeMsg)
 
 void PacketManager::ProcessPacket()
 {
+	int idleCount = 0;
 	while (mIsRunProcessThread)
 	{
 		bool isIdle = true;
@@ -386,16 +387,18 @@ void PacketManager::ProcessPacket()
 			task.Release();
 		}
 
-		// 4. 할 일이 없었을 때만 아주 잠깐 쉬기 (서버 성능 핵심!)
 		if (isIdle)
 		{
-			static int idleCount = 0;
 			if (++idleCount < 10)
 				std::this_thread::yield();
 			else {
 				idleCount = 0;
-				std::this_thread::sleep_for(std::chrono::microseconds(200)); // 1ms → 0.2ms
+				std::this_thread::sleep_for(std::chrono::microseconds(200));
 			}
+		}
+		else
+		{
+			idleCount = 0;  // 패킷 처리했으면 idle 카운터 리셋
 		}
 	}
 }
@@ -789,7 +792,7 @@ void PacketManager::ProcessPlayerMovement(UINT32 clientIndex_, UINT16 packetSize
 		// 실제 이동은 LogicThread -> Room::Update -> Actor::UpdateServerPhysics에서 처리
 		//pUser->SetInput(pMovePkt->dx, pMovePkt->dz, pMovePkt->inputSeq);
 		pUser->SetTarget(pMovePkt->currentPos, pMovePkt->currentRot, pMovePkt->axisH, pMovePkt->axisV, pMovePkt->inputSeq);
-		printf("[Movement] 유저 %d 이동 수신: %.2f, %.2f, %.2f\n", clientIndex_, pMovePkt->currentPos.x, pMovePkt->currentPos.y, pMovePkt->currentPos.z);
+		//printf("[Movement] 유저 %d 이동 수신: %.2f, %.2f, %.2f\n", clientIndex_, pMovePkt->currentPos.x, pMovePkt->currentPos.y, pMovePkt->currentPos.z);
 	}
 }
 
@@ -1284,7 +1287,7 @@ void PacketManager::UDPRecvThread()
 		{
 			auto pHeader = (PACKET_HEADER*)buf;
 			m_TotalRecvBytes += recvLen;
-			m_GrandTotalSendBytes += recvLen;
+			m_GrandTotalRecvBytes += recvLen;
 
 			//printf("[UDP] Packet Recv! ID:%d, Len:%d\n", pHeader->PacketId, recvLen);
 
@@ -1317,26 +1320,16 @@ void PacketManager::UDPRecvThread()
 			else if (pHeader->PacketId == (UINT16)PACKET_ID::MONSTER_MOVEMENT)
 			{
 				auto pMovePkt = (MONSTER_MOVEMENT_PACKET*)buf;
-
-				if (pMovePkt->userUUID < 0 || pMovePkt->userUUID >= mUserManager->GetMaxUserCnt())
-				{
-					continue;
-				}
+				if (pMovePkt->userUUID < 0 || pMovePkt->userUUID >= mUserManager->GetMaxUserCnt()) continue;
 
 				auto pUser = mUserManager->GetUserByConnIdx(pMovePkt->userUUID);
-				if (pUser)
+				if (!pUser) continue;
+
+				auto pRoom = mRoomManager->GetRoomByNumber(pUser->GetCurrentRoom());
+				if (pRoom)
 				{
-					PacketInfo pktInfo;
-					pktInfo.ClientIndex = (UINT32)pMovePkt->userUUID;
-					pktInfo.PacketId = pHeader->PacketId;
-					pktInfo.DataSize = recvLen;
-					pktInfo.pDataPtr = AllocUdpBuffer();
-					memcpy(pktInfo.pDataPtr, buf, recvLen);
-					PushSystemPacket(pktInfo);
-				}
-				else
-				{
-					//printf("[UDP MONSTER] pUser null! UUID=%lld\n", pMovePkt->userUUID);
+					// new/delete 없이 스택 버퍼 그대로 브로드캐스트
+					pRoom->BroadcastPacket(recvLen, buf);
 				}
 			}
 			else
@@ -1347,18 +1340,31 @@ void PacketManager::UDPRecvThread()
 				// 패킷 종류별로 clientIndex 추출
 				switch ((PACKET_ID)pHeader->PacketId)
 				{
-					case PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST:
-					{
-						auto pPkt = (PLAYER_GIMMICK_INTERACT_REQUEST_PACKET*)buf;
-						clientIndex = (UINT32)pPkt->activeUUID;
-						break;
-					}
-					case PACKET_ID::PLAYER_STATUS_NTF:
-					{
-						auto pPkt = (PLAYER_STATUS_NTF_PACKET*)buf;
-						clientIndex = (UINT32)pPkt->userUUID;
-						break;
-					}
+				case PACKET_ID::PLAYER_GIMMICK_INTERACT_REQUEST:
+				{
+					auto pPkt = (PLAYER_GIMMICK_INTERACT_REQUEST_PACKET*)buf;
+					clientIndex = (UINT32)pPkt->activeUUID;
+					break;
+				}
+				case PACKET_ID::PLAYER_STATUS_NTF:
+				{
+					auto pPkt = (PLAYER_STATUS_NTF_PACKET*)buf;
+					clientIndex = (UINT32)pPkt->userUUID;
+					break;
+				}
+				case PACKET_ID::SYS_TIME_SYNC_REQ:
+				{
+					auto pReq = (TIME_SYNC_REQ_PACKET*)buf;
+					TIME_SYNC_RES_PACKET res;
+
+					res.clientTimestamp = pReq->clientTimestamp;
+					auto now = std::chrono::system_clock::now();
+					res.serverTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+
+					sendto(mUdpSocket, (char*)&res, sizeof(res), 0, (sockaddr*)&clientAddr, addrLen);
+
+					continue;
+				}
 
 					// UDP로 추가되는 패킷은 여기에 case 추가
 					

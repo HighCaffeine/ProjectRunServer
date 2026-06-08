@@ -4,6 +4,7 @@
 void GimmickManager::ResetGimmicks(int count, int* gimmickIDs, Room* pRoom)
 {
 	std::lock_guard<std::recursive_mutex> guard(mGimmickLock);
+	auto now = std::chrono::system_clock::now();
 
 	for (int i = 0; i < count; i++)
 	{
@@ -30,7 +31,7 @@ void GimmickManager::ResetGimmicks(int count, int* gimmickIDs, Room* pRoom)
 			ntfPkt.state = (UINT8)eGimmickState::Restore;
 			ntfPkt.param = 0.0f;
 			ntfPkt.targetPos = gimmick.startPos;
-			auto now = std::chrono::system_clock::now();
+			
 			ntfPkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
 			pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
@@ -194,23 +195,25 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 	PLAYER_GIMMICK_INTERACT_NTF_PACKET ntfPkt;
 	bool shouldBroadcastNow = true;
 
-	printf("[Debug] Gimmick Interact 수신 - ID: %d, State: %d\n", pReq->gimmickID, pReq->state);
-
 	{
 		std::lock_guard<std::recursive_mutex> guard(mGimmickLock);
 
 		auto it = mGimmicks.find(pReq->gimmickID);
-		if (it == mGimmicks.end())
-		{
-			return;
-		}
+		if (it == mGimmicks.end()) return;
 
 		ServerGimmickData& gimmick = it->second;
 		if (gimmick.hp <= 0) return;
 
-		it->second.currentState = pReq->state;
+		if (gimmick.type == (int)eGimmickKey::FallingPlatform)
+		{
+			if (gimmick.currentState == 1 && pReq->state == 1)
+			{
+				return;
+			}
+		}
 
-		// state=99 (즉시 파괴)는 바로 브로드캐스트
+		gimmick.currentState = pReq->state;
+
 		if (pReq->state == 99)
 		{
 			gimmick.hp = 0;
@@ -223,12 +226,9 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 			ntfPkt.targetPos = gimmick.position;
 			shouldBroadcastNow = true;
 		}
-		else if (it->second.type == (int)eGimmickKey::FallingPlatform && pReq->state == 1)
+		else if (gimmick.type == (int)eGimmickKey::FallingPlatform)
 		{
-			if (it->second.gimmickRecoverTime <= 0.0f)
-			{
-				it->second.gimmickRecoverTime = (gimmick.waitTime > 0.0f) ? gimmick.waitTime : 7.0f;
-			}
+			gimmick.gimmickRecoverTime = (gimmick.waitTime > 0.0f) ? gimmick.waitTime : 7.0f;
 
 			ntfPkt.activeUUID = pReq->activeUUID;
 			ntfPkt.gimmickID = pReq->gimmickID;
@@ -253,36 +253,21 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 
 			pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 
-			printf("[Checkpoint] User %lld activated checkpoint: %.0f\n", pReq->activeUUID, pReq->param);
 			return;
 		}
-
-		/*if (gimmick.type == (int)eGimmickKey::MovePlatform)
-		{
-			if (gimmick.activationType == 1 && pReq->state == 1)
-			{
-				if (!gimmick.isMoveTriggered)
-				{
-					gimmick.isMoveTriggered = true;
-					gimmick.moveDelayTimer = gimmick.waitTime > 0.0f ? gimmick.waitTime : 1.0f;
-					gimmick.currentState = 1;
-				}
-				shouldBroadcastNow = false;
-			}
-		}*/
 
 		if (pReq->state == (UINT8)eGimmickState::GimmickPush)
 		{
 			// 중복 참여 체크
 			bool alreadyIn = false;
-			for (uint64_t uuid : gimmick.interactorUUIDs) 
+			for (uint64_t uuid : gimmick.interactorUUIDs)
 			{
 				if (uuid == pReq->activeUUID) alreadyIn = true;
 			}
 
-			if (!alreadyIn) 
+			if (!alreadyIn)
 			{
-				if (!gimmick.isInteracting) 
+				if (!gimmick.isInteracting)
 				{
 					gimmick.isInteracting = true;
 					gimmick.interactWindowTimer = 0.5f;
@@ -294,11 +279,9 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 				gimmick.totalDirX += pReq->targetPos.x;
 				gimmick.totalDirZ += pReq->targetPos.z;
 			}
-
-			printf("[ProcessGimmickInteract] gimmickID=%d, state=%d, type=%d\n", pReq->gimmickID, pReq->state, gimmick.type);
 			shouldBroadcastNow = false;
 		}
-		else 
+		else
 		{
 			// state가 3이 아닐 때만 브로드캐스트 패킷 세팅
 			ntfPkt.activeUUID = pReq->activeUUID;
@@ -310,12 +293,12 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 			if (pReq->state == (UINT8)eGimmickState::Sync ||
 				pReq->state == (UINT8)eGimmickState::GimmickPush)
 			{
-				ntfPkt.targetPos = pReq->targetPos; 
+				ntfPkt.targetPos = pReq->targetPos;
 				gimmick.position = pReq->targetPos;
 			}
 			else
 			{
-				ntfPkt.targetPos = gimmick.position; 
+				ntfPkt.targetPos = gimmick.position;
 			}
 
 			ntfPkt.timestamp = pReq->timestamp;
@@ -381,8 +364,7 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					ntfPkt.state = (UINT8)eGimmickState::TriggerMove;
 					ntfPkt.targetPos = gimmick.endPos;
 					ntfPkt.param = 0.0f; 
-					auto now = std::chrono::system_clock::now();
-					ntfPkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+					ntfPkt.timestamp = nowMs;
 					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 
 					gimmick.isReturning = true;
@@ -444,7 +426,6 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					{
 						int damageToTake = isExplosion ? (int)finalForce : 1;
 						gimmick.hp -= damageToTake;
-						printf("[GimmickManager] HP 감소 - GimmickID: %d, 남은 HP: %d\n", gimmick.gimmickID, gimmick.hp);
 					}
 				}
 
@@ -461,8 +442,6 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					ntfPkt.targetPos.x = 0.0f;
 					ntfPkt.targetPos.y = 0.0f;
 					ntfPkt.targetPos.z = 0.0f;
-
-					printf("[GimmickManager] 기믹 파괴 - GimmickID: %d, Type: %d\n", gimmick.gimmickID, gimmick.type);
 				}
 				else
 				{
