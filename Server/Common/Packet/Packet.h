@@ -513,6 +513,7 @@ struct MONSTER_MOVEMENT_PACKET : public PACKET_HEADER
 	int monsterID;
 	Vector3 currentPos;
 	Quaternion currentRot;
+	INT64 timestamp;
 	MONSTER_MOVEMENT_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MONSTER_MOVEMENT) {}
 };
 
@@ -525,6 +526,7 @@ struct MONSTER_STATE_PACKET : public PACKET_HEADER
 	float param;
 	UINT8 isPull;
 	Vector3 casterPos;
+	INT64 timeStamp;
 	MONSTER_STATE_PACKET() : PACKET_HEADER(sizeof(*this), PACKET_ID::MONSTER_STATE_NTF) {}
 };
 
