@@ -7,6 +7,7 @@
 #include "Define.h"
 #include <thread>
 #include <vector>
+#include <stack>
 
 class IOCPServer
 {
@@ -158,6 +159,7 @@ private:
 			client->Init(i, mIOCPHandle);
 
 			mClientInfos.push_back(client);
+			mEmptyClientStack.push(i);
 		}
 	}
 
@@ -178,15 +180,12 @@ private:
 	//사용하지 않는 클라이언트 정보 구조체를 반환한다.
 	stClientInfo* GetEmptyClientInfo()
 	{
-		for (auto& client : mClientInfos)
-		{
-			if (client->IsConnectd() == false)
-			{
-				return client;
-			}
-		}
+		std::lock_guard<std::mutex> guard(mEmptyClientLock);
+		if (mEmptyClientStack.empty()) return nullptr;
+		UINT32 idx = mEmptyClientStack.top();
+		mEmptyClientStack.pop();
 
-		return nullptr;
+		return mClientInfos[idx];
 	}
 
 	stClientInfo* GetClientInfo(const UINT32 clientIndex_)
@@ -316,43 +315,30 @@ private:
 	//소켓의 연결을 종료 시킨다.
 	void CloseSocket(stClientInfo* clientInfo_, bool isForce_ = false)
 	{
-		if (clientInfo_->IsConnectd() == false)
-		{
-			return;
-		}
+		if (clientInfo_->IsConnectd() == false) return;
 
 		auto clientIndex = clientInfo_->GetIndex();
-
 		clientInfo_->Close(isForce_);
-		
 		OnClose(clientIndex);
+
+		std::lock_guard<std::mutex> guard(mEmptyClientLock);
+		mEmptyClientStack.push(clientIndex);
 	}
 
-
+	std::stack<UINT32> mEmptyClientStack;
+	std::mutex mEmptyClientLock;
 
 	UINT32 MaxIOWorkerThreadCount = 0;
+	std::vector<stClientInfo*> mClientInfos;		//클라이언트 정보 저장 구조체
+	SOCKET mListenSocket = INVALID_SOCKET;		//클라이언트의 접속을 받기위한 리슨 소켓
 
-	//클라이언트 정보 저장 구조체
-	std::vector<stClientInfo*> mClientInfos;
+	int	mClientCnt = 0;		//접속 되어있는 클라이언트 수
 
-	//클라이언트의 접속을 받기위한 리슨 소켓
-	SOCKET		mListenSocket = INVALID_SOCKET;
-	
-	//접속 되어있는 클라이언트 수
-	int			mClientCnt = 0;
-	
-	//IO Worker 스레드
-	std::vector<std::thread> mIOWorkerThreads;
+	std::vector<std::thread> mIOWorkerThreads;		//IO Worker 스레드
+	std::thread	mAccepterThread;	//Accept 스레드
 
-	//Accept 스레드
-	std::thread	mAccepterThread;
+	HANDLE mIOCPHandle = INVALID_HANDLE_VALUE;		//CompletionPort객체 핸들
 
-	//CompletionPort객체 핸들
-	HANDLE		mIOCPHandle = INVALID_HANDLE_VALUE;
-	
-	//작업 쓰레드 동작 플래그
-	bool		mIsWorkerRun = true;
-
-	//접속 쓰레드 동작 플래그
-	bool		mIsAccepterRun = true;
+	bool mIsWorkerRun = true;	//작업 쓰레드 동작 플래그
+	bool mIsAccepterRun = true;		//접속 쓰레드 동작 플래그
 };

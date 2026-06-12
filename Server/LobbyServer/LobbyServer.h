@@ -32,8 +32,24 @@ public:
 		m_pPacketManager->PushSystemPacket(packet);
 	}
 
+	/*virtual void OnReceive(const UINT32 clientIndex_, const UINT32 size_, char* pData_) override
+	{
+		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
+	}*/
+
 	virtual void OnReceive(const UINT32 clientIndex_, const UINT32 size_, char* pData_) override
 	{
+		printf("[OnReceive] Index(%d), size(%d)\n", clientIndex_, size_);
+
+		if (size_ >= sizeof(PACKET_HEADER))
+		{
+			auto pHeader = reinterpret_cast<PACKET_HEADER*>(pData_);
+			if (pHeader->PacketId == (UINT16)PACKET_ID::SYS_TIME_SYNC_REQ)
+			{
+				m_pPacketManager->ProcessTimeSync(clientIndex_, size_, pData_);
+				return;
+			}
+		}
 		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
 	}
 

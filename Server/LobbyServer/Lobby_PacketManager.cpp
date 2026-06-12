@@ -150,7 +150,11 @@ void PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 si
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	pUser->SetPacketData(size_, pData_);
 
-	EnqueuePacketData(clientIndex_);
+	int count = pUser->GetAndEnqueuePendingCount();
+	for (int i = 0; i < count; i++)
+	{
+		EnqueuePacketData(clientIndex_);
+	}
 }
 
 void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
@@ -218,43 +222,44 @@ void PacketManager::RedisReqNotice(User& user, const std::string noticeMsg)
 
 	printf("[Redis Request] Notice. userUUID(%d), userID(%s), msg:%s\n", user.GetNetConnIdx(), user.GetUserId(), noticeMsg.c_str());
 }
-
-
 void PacketManager::ProcessPacket()
 {
 	static auto lastCheckTime = std::chrono::steady_clock::now();
-
 	while (mIsRunProcessThread)
 	{
 		bool isIdle = true;
 
-		if (auto packetData = DequePacketData(); packetData.PacketId > (UINT16)PACKET_ID::SYS_END)
+		while (true)
 		{
+			auto packetData = DequePacketData();
+			//if (packetData.PacketId <= (UINT16)PACKET_ID::SYS_END) break;
+			if (packetData.PacketId == 0) break;
 			isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+			delete[] packetData.pDataPtr;
 		}
 
-		if (auto packetData = DequeSystemPacketData(); packetData.PacketId != 0)
+		while (true)
 		{
+			auto packetData = DequeSystemPacketData();
+			if (packetData.PacketId == 0) break;
 			isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
-
-			if (packetData.pDataPtr != nullptr)
-			{
-				delete[] packetData.pDataPtr;
-			}
+			if (packetData.pDataPtr != nullptr) delete[] packetData.pDataPtr;
 		}
 
-		if (auto task = mRedisMgr->TakeResponseTask(); task.TaskID != RedisTaskID::INVALID)
+		while (true)
 		{
+			auto task = mRedisMgr->TakeResponseTask();
+			if (task.TaskID == RedisTaskID::INVALID) break;
 			isIdle = false;
 			ProcessRecvPacket(task.UserIndex, (UINT16)task.TaskID, task.DataSize, task.pData);
 			task.Release();
 		}
 
-		if(isIdle)
+		if (isIdle)
 		{
-			std::this_thread::yield();
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
 		}
 	}
 }
@@ -309,7 +314,7 @@ void PacketManager::ProcessPacket()
 
 void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_)
 {
-	//printf("[Debug] Packet Received. Index: %d, ID: %d, Size: %d\n", clientIndex_, packetId_, packetSize_);
+	printf("[Debug] Packet Received. Index: %d, ID: %d, Size: %d\n", clientIndex_, packetId_, packetSize_);
 
 	auto iter = mRecvFuntionDictionary.find(packetId_);
 	if (iter != mRecvFuntionDictionary.end())

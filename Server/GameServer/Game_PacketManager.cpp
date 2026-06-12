@@ -224,7 +224,11 @@ void PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 si
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	pUser->SetPacketData(size_, pData_);
 
-	EnqueuePacketData(clientIndex_);
+	int count = pUser->GetAndEnqueuePendingCount();
+	for (int i = 0; i < count; i++)
+	{
+		EnqueuePacketData(clientIndex_);
+	}
 }
 
 void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
@@ -362,6 +366,7 @@ void PacketManager::ProcessPacket()
 
 			isIdle = false;
 			ProcessRecvPacket(packetData.ClientIndex, packetData.PacketId, packetData.DataSize, packetData.pDataPtr);
+			delete[] packetData.pDataPtr;
 		}
 
 		// 2. 시스템 패킷 처리
@@ -390,8 +395,11 @@ void PacketManager::ProcessPacket()
 		if (isIdle)
 		{
 			if (++idleCount < 10)
-				std::this_thread::yield();
-			else {
+			{
+				std::this_thread::sleep_for(std::chrono::microseconds(100));
+			}
+			else 
+			{
 				idleCount = 0;
 				std::this_thread::sleep_for(std::chrono::microseconds(200));
 			}
@@ -405,7 +413,7 @@ void PacketManager::ProcessPacket()
 
 void PacketManager::ProcessRecvPacket(const UINT32 clientIndex_, const UINT16 packetId_, const UINT16 packetSize_, char* pPacket_)
 {
-	//printf("[Debug] Packet Received. Index: %d, ID: %d, Size: %d\n", clientIndex_, packetId_, packetSize_);
+	printf("[Debug] Packet Received. Index: %d, ID: %d, Size: %d\n", clientIndex_, packetId_, packetSize_);
 
 	auto iter = mRecvFuntionDictionary.find(packetId_);
 	if (iter != mRecvFuntionDictionary.end())
@@ -643,6 +651,7 @@ void PacketManager::ProcessNoticeDBResult(UINT32 clientIndex_, UINT16 packetSize
 
 void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 {
+	printf("[ProcessEnterRoom] clientIndex: %d\n", clientIndex_);
 	UNREFERENCED_PARAMETER(packetSize_);
 
 	auto pRoomEnterReqPacket = reinterpret_cast<ROOM_ENTER_REQUEST_PACKET*>(pPacket_);
@@ -694,6 +703,8 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	// 방안 유저들에게 입장하는 유저 정보 전송
 	//pRoom->NotifyUserEnter(clientIndex_, pReqUser->GetUserId());
 	pRoom->NotifyUserEnter(clientIndex_, pReqUser->GetUserId(), pReqUser->GetCharacterID());
+
+	printf("[ProcessEnterRoom] enterResult: %d\n", enterResult);
 	//인벤토리 처리
 	/*if (enterResult == (UINT16)ERROR_CODE::NONE)
 	{

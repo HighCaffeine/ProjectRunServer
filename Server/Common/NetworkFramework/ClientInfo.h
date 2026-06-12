@@ -5,6 +5,24 @@
 #include <mutex>
 #include <queue>
 
+class OverlappedPool
+{
+public:
+	static stOverlappedEx* Acquire(UINT32 dataSize)
+	{
+		auto ex = new stOverlappedEx;
+		ZeroMemory(ex, sizeof(stOverlappedEx));
+		ex->m_wsaBuf.buf = new char[dataSize];
+		ex->m_wsaBuf.len = dataSize;
+		return ex;
+	}
+
+	static void Release(stOverlappedEx* ex)
+	{
+		delete[] ex->m_wsaBuf.buf;
+		delete ex;
+	}
+};
 
 //클라이언트 정보를 담기위한 구조체
 class stClientInfo
@@ -40,13 +58,15 @@ public:
 		
 		Clear();
 
-		//I/O Completion Port객체와 소켓을 연결시킨다.
 		if (BindIOCompletionPort(iocpHandle_) == false)
 		{
 			return false;
 		}
 
-		SetSocketOption();
+		if (SetSocketOption() == false)
+		{
+			return false;
+		}
 
 		return BindRecv();
 	}
@@ -76,6 +96,21 @@ public:
 
 	void Clear()
 	{		
+	}
+
+	static stOverlappedEx* Acquire(UINT32 dataSize)
+	{
+		auto ex = new stOverlappedEx;
+		ZeroMemory(ex, sizeof(stOverlappedEx));
+		ex->m_wsaBuf.buf = new char[dataSize];
+		ex->m_wsaBuf.len = dataSize;
+		return ex;
+	}
+
+	static void Release(stOverlappedEx* ex)
+	{
+		delete[] ex->m_wsaBuf.buf;
+		delete ex;
 	}
 
 	bool PostAccept(SOCKET listenSock_, const UINT64 curTimeSec_)
@@ -166,54 +201,34 @@ public:
 			(LPWSAOVERLAPPED) & (mRecvOverlappedEx),
 			NULL);
 
-		//socket_error이면 client socket이 끊어진걸로 처리한다.
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
-			printf("[에러] WSARecv()함수 실패 : %d\n", WSAGetLastError());
+			printf("[ERROR] WSASend()함수 실패 : %d\n", WSAGetLastError());
 			return false;
 		}
 
 		return true;
 	}
 
-	// 1개의 스레드에서만 호출해야 한다!
 	bool SendMsg(const UINT32 dataSize_, char* pMsg_)
-	{	
-		auto sendOverlappedEx = new stOverlappedEx;
-		ZeroMemory(sendOverlappedEx, sizeof(stOverlappedEx));
-		sendOverlappedEx->m_wsaBuf.buf = sendOverlappedEx->messageBuffer;
-		sendOverlappedEx->m_wsaBuf.len = dataSize_;
+	{
+		auto sendOverlappedEx = OverlappedPool::Acquire(dataSize_);
+		CopyMemory(sendOverlappedEx->m_wsaBuf.buf, pMsg_, dataSize_);
 		sendOverlappedEx->m_eOperation = IOOperation::SEND;
-		
-		memcpy(sendOverlappedEx->m_wsaBuf.buf, pMsg_, dataSize_);
 
 		std::lock_guard<std::mutex> guard(mSendLock);
-
 		mSendDataqueue.push(sendOverlappedEx);
 
-		if (mSendDataqueue.size() == 1)
-		{
-			SendIO();
-		}
-		
+		if (mSendDataqueue.size() == 1) SendIO();
 		return true;
-	}	
+	}
 
 	void SendCompleted(const UINT32 dataSize_)
-	{		
-		//printf("[송신 완료] bytes : %d\n", dataSize_);
-
+	{
 		std::lock_guard<std::mutex> guard(mSendLock);
-
-		//delete[] mSendDataqueue.front()->m_wsaBuf.buf;
-		delete mSendDataqueue.front();
-
+		OverlappedPool::Release(mSendDataqueue.front());
 		mSendDataqueue.pop();
-
-		if (mSendDataqueue.empty() == false)
-		{
-			SendIO();
-		}
+		if (!mSendDataqueue.empty()) SendIO();
 	}
 
 
@@ -231,10 +246,15 @@ private:
 			(LPWSAOVERLAPPED)sendOverlappedEx,
 			NULL);
 
-		//socket_error이면 client socket이 끊어진걸로 처리한다.
 		if (nRet == SOCKET_ERROR && (WSAGetLastError() != ERROR_IO_PENDING))
 		{
 			printf("[에러] WSASend()함수 실패 : %d\n", WSAGetLastError());
+
+			while (!mSendDataqueue.empty())
+			{
+				OverlappedPool::Release(mSendDataqueue.front());
+				mSendDataqueue.pop();
+			}
 			return false;
 		}
 
@@ -255,6 +275,14 @@ private:
 			printf_s("[DEBUG] TCP_NODELAY error: %d\n", GetLastError());
 			return false;
 		}
+
+		// 송신 버퍼 명시적 설정
+		int sendBufSize = 65536;
+		setsockopt(mSocket, SOL_SOCKET, SO_SNDBUF, (const char*)&sendBufSize, sizeof(int));
+
+		// TCP Keep-Alive (끊긴 클라이언트 감지)
+		BOOL keepAlive = TRUE;
+		setsockopt(mSocket, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keepAlive, sizeof(BOOL));
 
 		/*opt = 0;
 		if (SOCKET_ERROR == setsockopt(mSocket, SOL_SOCKET, SO_RCVBUF, (const char*)&opt, sizeof(int)))

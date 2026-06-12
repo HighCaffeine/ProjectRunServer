@@ -297,7 +297,8 @@ struct ROOM_CHAT_NOTIFY_PACKET : public PACKET_HEADER
 #pragma region [3] Game Flow & Handover
 struct MATCH_START_NTF_PACKET : public PACKET_HEADER
 {
-	UINT16 gameServerPort;
+	UINT16 gameServerPort; 
+	UINT16 gameServerUdpPort;
 	char authToken[64];
 	MATCH_START_NTF_PACKET() : authToken{ 0 }, gameServerPort{ 0 }, PACKET_HEADER(sizeof(*this), PACKET_ID::MATCH_START_NTF) {}
 };

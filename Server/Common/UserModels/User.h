@@ -66,7 +66,7 @@ public:
 	PacketInfo GetPacket()
 	{
 		std::lock_guard<std::mutex> guard(mLock);
-		const int PACKET_HEADER_LENGTH = 4;
+		const int PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
 		UINT32 remainByte = mPacketDataBufferWPos - mPacketDataBufferRPos;
 
 		if(remainByte < PACKET_HEADER_LENGTH)
@@ -92,10 +92,36 @@ public:
 		PacketInfo packetInfo;
 		packetInfo.PacketId = pHeader->PacketId;
 		packetInfo.DataSize = pHeader->PacketLength;
-		packetInfo.pDataPtr = &mPacketDataBuffer[mPacketDataBufferRPos];
+
+		// 직접 포인터 대신 복사본 사용
+		packetInfo.pDataPtr = new char[pHeader->PacketLength];
+		CopyMemory(packetInfo.pDataPtr, &mPacketDataBuffer[mPacketDataBufferRPos], pHeader->PacketLength);
+
 		mPacketDataBufferRPos += pHeader->PacketLength;
 
 		return packetInfo;
+	}
+
+	int GetAndEnqueuePendingCount()
+	{
+		std::lock_guard<std::mutex> guard(mLock);
+		const int PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
+		int count = 0;
+		UINT32 readPos = mPacketDataBufferRPos;
+
+		while (true)
+		{
+			UINT32 remain = mPacketDataBufferWPos - readPos;
+			if (remain < (UINT32)PACKET_HEADER_LENGTH) break;
+
+			auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[readPos];
+			if (pHeader->PacketLength < (UINT32)PACKET_HEADER_LENGTH || pHeader->PacketLength > 2048) break;
+			if (pHeader->PacketLength > remain) break;
+
+			readPos += pHeader->PacketLength;
+			count++;
+		}
+		return count;
 	}
 
 	void SetInventory(int index, int itemID)

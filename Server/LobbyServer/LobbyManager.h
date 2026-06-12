@@ -72,8 +72,16 @@ public:
 
 	void ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_)
 	{
+		printf("[ProcessEnterRoom] START clientIndex: %d\n", clientIndex_);
+
 		auto pReq = reinterpret_cast<ROOM_ENTER_REQUEST_PACKET*>(pPacket_);
+
+		printf("[ProcessEnterRoom] RoomNumber: %d\n", pReq->RoomNumber);
+
 		auto pReqUser = mUserManager->GetUserByConnIdx(clientIndex_);
+
+		printf("[ProcessEnterRoom] pReqUser: %s\n", pReqUser ? "OK" : "NULL");
+
 		if (!pReqUser) return;
 
 		INT32 currentRoom = pReqUser->GetCurrentRoom();
@@ -264,7 +272,8 @@ public:
 
 			// 클라이언트에게 접속할 포트와 인증 토큰 발송
 			MATCH_START_NTF_PACKET ntf;
-			ntf.gameServerPort = allocatedPort;
+			ntf.gameServerPort = allocatedPort;		//TCP
+			ntf.gameServerUdpPort = allocatedPort;	//UDP
 			StringCbCopyA(ntf.authToken, sizeof(ntf.authToken), tokenStr.c_str());
 
 			SendPacketFunc(user->GetNetConnIdx(), sizeof(ntf), (char*)&ntf);

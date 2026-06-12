@@ -83,6 +83,12 @@ public:
 			
 		user_->SetDomainState(User::DOMAIN_STATE::LOGIN);
 		pRoom->LeaveUser(user_);
+		
+		if (pRoom->GetCurrentUserCount() == 0)
+		{
+			ClearRoom(roomNumber_);
+		}
+
 		return (INT16)ERROR_CODE::NONE;
 	}
 
@@ -114,7 +120,7 @@ public:
 	}
 
 		
-	std::function<void(UINT32, UINT16, char*)> SendPacketFunc;
+	std::function<void(UINT32, UINT32, char*)> SendPacketFunc;
 private:
 	std::vector<Room*> mRoomList;
 	INT32 mBeginRoomNumber = 0;
