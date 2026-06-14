@@ -31,7 +31,7 @@ public:
 	PacketManager() = default;
 	~PacketManager() = default;
 
-	void Init(const UINT32 maxClient_);
+	void Init(const UINT32 maxClient_, const UINT16 port_);
 
 	bool Run();
 
@@ -49,6 +49,7 @@ public:
 			{
 				// 보내는 양 누적
 				m_TotalSendBytes += dataSize;
+				m_GrandTotalSendBytes += dataSize;
 
 				// 실제 전송 함수 호출
 				if (sendFunc) sendFunc(clientIndex, dataSize, pData);
@@ -57,7 +58,7 @@ public:
 
 	void ProcessTimeSync(UINT32 clientIndex_, UINT16 packetSize_, char* pPacket_);
 private:
-	void CreateCompent(const UINT32 maxClient_);
+	void CreateCompent(const UINT32 maxClient_, const UINT16 port_);
 
 	void ClearConnectionInfo(INT32 clientIndex_);
 
@@ -156,6 +157,7 @@ private:
 	std::atomic<uint64_t> m_GrandTotalRecvBytes{ 0 };
 	std::atomic<uint64_t> m_GrandTotalSendBytes{ 0 };
 
+	int m_PeakUserCount = 0;
 
 	UserManager* mUserManager;
 	RoomManager* mRoomManager;

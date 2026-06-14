@@ -50,6 +50,7 @@ public:
 			{
 				// 보내는 양 누적
 				m_TotalSendBytes += dataSize;
+				m_GrandTotalSendBytes += dataSize;
 
 				// 실제 전송 함수 호출
 				if (sendFunc) sendFunc(clientIndex, dataSize, pData);

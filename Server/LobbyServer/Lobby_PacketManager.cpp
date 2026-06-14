@@ -68,8 +68,9 @@ void PacketManager::CreateCompent(const UINT32 maxClient_)
 	mUserManager = new UserManager;
 	mUserManager->Init(maxClient_);
 
-	LogManager::Init();
-		
+	//LogManager::Init();
+	LogManager::Init("Lobby");
+
 	UINT32 startRoomNummber = 0;
 	UINT32 maxRoomCount = 2;
 	UINT32 maxRoomUserCount = 2;
@@ -107,6 +108,8 @@ void PacketManager::End()
 {
 	double finalRecvMB = m_GrandTotalRecvBytes / (1024.0 * 1024.0);
 	double finalSendMB = m_GrandTotalSendBytes / (1024.0 * 1024.0);
+
+	LogManager::LogFinalSummary(m_GrandTotalRecvBytes, m_GrandTotalSendBytes, mUserManager->GetCurrentUserCnt());
 
 	spdlog::info("==================================================");
 	spdlog::info("[Server Closed] Final Total Bandwidth -> In: {:.2f} MB | Out: {:.2f} MB", finalRecvMB, finalSendMB);
@@ -150,11 +153,7 @@ void PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 si
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	pUser->SetPacketData(size_, pData_);
 
-	int count = pUser->GetAndEnqueuePendingCount();
-	for (int i = 0; i < count; i++)
-	{
-		EnqueuePacketData(clientIndex_);
-	}
+	EnqueuePacketData(clientIndex_);
 }
 
 void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
@@ -166,13 +165,9 @@ void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
 PacketInfo PacketManager::DequePacketData()
 {
 	UINT32 userIndex = 0;
-
 	{
 		std::lock_guard<std::mutex> guard(mLock);
-		if (mInComingPacketUserIndex.empty())
-		{
-			return PacketInfo();
-		}
+		if (mInComingPacketUserIndex.empty()) return PacketInfo();
 
 		userIndex = mInComingPacketUserIndex.front();
 		mInComingPacketUserIndex.pop_front();
@@ -181,6 +176,13 @@ PacketInfo PacketManager::DequePacketData()
 	auto pUser = mUserManager->GetUserByConnIdx(userIndex);
 	auto packetData = pUser->GetPacket();
 	packetData.ClientIndex = userIndex;
+
+	if (pUser->HasPendingPacket())
+	{
+		std::lock_guard<std::mutex> guard(mLock);
+		mInComingPacketUserIndex.push_back(userIndex);
+	}
+
 	return packetData;
 }
 
@@ -255,6 +257,17 @@ void PacketManager::ProcessPacket()
 			isIdle = false;
 			ProcessRecvPacket(task.UserIndex, (UINT16)task.TaskID, task.DataSize, task.pData);
 			task.Release();
+		}
+
+		//´ë¿ªÆø ·Î±ë
+		auto now = std::chrono::steady_clock::now();
+		if (std::chrono::duration_cast<std::chrono::seconds>(now - lastCheckTime).count() >= 1)
+		{
+			LogManager::LogBandwidth(m_TotalRecvBytes, m_TotalSendBytes, m_GrandTotalRecvBytes, m_GrandTotalSendBytes);
+
+			m_TotalRecvBytes = 0;
+			m_TotalSendBytes = 0;
+			lastCheckTime = now;
 		}
 
 		if (isIdle)

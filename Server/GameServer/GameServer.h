@@ -42,7 +42,7 @@ public:
 		m_pPacketManager->ReceivePacketData(clientIndex_, size_, pData_);
 	}
 
-	void Run(const UINT32 maxClient)
+	void Run(const UINT32 maxClient, const UINT16 port_)
 	{
 		/*auto sendPacketFunc = [&](UINT32 clientIndex_, UINT16 packetSize, char* pSendPacket)
 		{
@@ -54,7 +54,7 @@ public:
 		//기존거에 + 전송량 총합 검사
 		m_pPacketManager->RegisterSendFunction([&](UINT32 clientIndex_, UINT32 packetSize, char* pSendPacket) {
 			SendMsg(clientIndex_, packetSize, pSendPacket);});
-		m_pPacketManager->Init(maxClient);		
+		m_pPacketManager->Init(maxClient, port_);
 		m_pPacketManager->Run();
 		
 		StartServer(maxClient);

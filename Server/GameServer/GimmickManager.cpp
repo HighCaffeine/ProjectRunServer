@@ -214,6 +214,15 @@ void GimmickManager::ProcessGimmickInteract(User* pUser, PLAYER_GIMMICK_INTERACT
 
 		gimmick.currentState = pReq->state;
 
+		if (gimmick.type == (int)eGimmickKey::MovePlatform && gimmick.activationType == 1)
+		{
+			if (pReq->state == 1 && !gimmick.isMoveTriggered && !gimmick.isReturning)
+			{
+				gimmick.isMoveTriggered = true;
+				gimmick.moveDelayTimer = 0.0f;
+			}
+		}
+
 		if (pReq->state == 99)
 		{
 			gimmick.hp = 0;
@@ -348,7 +357,7 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 			}
 		}
 
-		if (gimmick.type == (int)eGimmickKey::MovePlatform && gimmick.activationType == 1)
+		/*if (gimmick.type == (int)eGimmickKey::MovePlatform && gimmick.activationType == 1)
 		{
 			if (gimmick.isMoveTriggered)
 			{
@@ -399,7 +408,7 @@ void GimmickManager::UpdateGimmicks(float dt, Room* pRoom)
 					pRoom->BroadcastPacket(ntfPkt.PacketLength, (char*)&ntfPkt);
 				}
 			}
-		}
+		}*/
 
 		if (gimmick.isInteracting)
 		{

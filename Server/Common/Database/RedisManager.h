@@ -14,6 +14,8 @@
 #include <chrono>
 #include <ctime>
 
+extern bool g_IsServerRunning;
+
 class RedisManager
 {
 public:
@@ -207,7 +209,8 @@ private:
 
             printf("[Redis Pub] %d번 방 삭제 메시지 로비로 전송.\n", roomNum);
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            ExitProcess(0);
+
+            g_IsServerRunning = false;
             break;
         }
 

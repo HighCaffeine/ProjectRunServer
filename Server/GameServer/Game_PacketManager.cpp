@@ -14,8 +14,7 @@
 
 #include "Game_PacketManager.h"
 
-
-void PacketManager::Init(const UINT32 maxClient_)
+void PacketManager::Init(const UINT32 maxClient_, const UINT16 port_)
 {
 	mRecvFuntionDictionary = std::unordered_map<int, PROCESS_RECV_PACKET_FUNCTION>();
 
@@ -73,7 +72,7 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mRecvFuntionDictionary[(int)PACKET_ID::MONSTER_STATE_NTF] = &PacketManager::ProcessMonsterStateChange;
 	mRecvFuntionDictionary[(int)PACKET_ID::MONSTER_MOVEMENT] = &PacketManager::ProcessMonsterMovement;
 
-	CreateCompent(maxClient_);
+	CreateCompent(maxClient_, port_);
 
 	mRedisMgr = new RedisManager;// std::make_unique<RedisManager>();
 
@@ -81,12 +80,13 @@ void PacketManager::Init(const UINT32 maxClient_)
 	mLobbyManager->Init(mRedisMgr, mUserManager, mRoomManager, SendPacketFunc);*/
 }
 
-void PacketManager::CreateCompent(const UINT32 maxClient_)
+void PacketManager::CreateCompent(const UINT32 maxClient_, const UINT16 port_)
 {
 	mUserManager = new UserManager;
 	mUserManager->Init(maxClient_);
 
-	LogManager::Init();
+	//LogManager::Init();
+	LogManager::Init("Game", port_);
 		
 	UINT32 startRoomNummber = 0;
 	UINT32 maxRoomCount = 10;
@@ -152,6 +152,8 @@ void PacketManager::End()
 {
 	double finalRecvMB = m_GrandTotalRecvBytes / (1024.0 * 1024.0);
 	double finalSendMB = m_GrandTotalSendBytes / (1024.0 * 1024.0);
+
+	LogManager::LogFinalSummary(m_GrandTotalRecvBytes, m_GrandTotalSendBytes, mUserManager->GetCurrentUserCnt());
 
 	spdlog::info("==================================================");
 	spdlog::info("[Server Closed] Final Total Bandwidth -> In: {:.2f} MB | Out: {:.2f} MB", finalRecvMB, finalSendMB);
@@ -224,11 +226,7 @@ void PacketManager::ReceivePacketData(const UINT32 clientIndex_, const UINT32 si
 	auto pUser = mUserManager->GetUserByConnIdx(clientIndex_);
 	pUser->SetPacketData(size_, pData_);
 
-	int count = pUser->GetAndEnqueuePendingCount();
-	for (int i = 0; i < count; i++)
-	{
-		EnqueuePacketData(clientIndex_);
-	}
+	EnqueuePacketData(clientIndex_);
 }
 
 void PacketManager::EnqueuePacketData(const UINT32 clientIndex_)
@@ -691,11 +689,18 @@ void PacketManager::ProcessEnterRoom(UINT32 clientIndex_, UINT16 packetSize_, ch
 	if (enterResult != (UINT16)ERROR_CODE::NONE)
 	{
 		spdlog::warn("[Enter] User({}) Failed. Error: {}", clientIndex_, enterResult);
-		return; 
+		return;
 	}
 	else
 	{
 		spdlog::info("[Enter] User({}) Entered Room Number [{}]", clientIndex_, roomNumber);
+
+		int currentUsers = mUserManager->GetCurrentUserCnt();
+		if (currentUsers > m_PeakUserCount)
+		{
+			m_PeakUserCount = currentUsers;
+			//spdlog::info("[System] 최대 동접자 수 갱신: {}명", m_PeakUserCount);
+		}
 	}
 	auto pRoom = mRoomManager->GetRoomByNumber(roomNumber);
 
@@ -1255,6 +1260,8 @@ void PacketManager::LogicThread()
 	auto nextTick = clock::now();
 	const auto tickInterval = std::chrono::milliseconds(20);
 
+	auto lastBandwidthCheckTime = clock::now();
+
 	while (mIsRunLogicThread)
 	{
 		// Update 먼저 실행
@@ -1272,6 +1279,17 @@ void PacketManager::LogicThread()
 		nextTick += tickInterval;
 
 		auto now = clock::now();
+
+		//로깅
+		if (std::chrono::duration_cast<std::chrono::seconds>(now - lastBandwidthCheckTime).count() >= 1)
+		{
+			LogManager::LogBandwidth(m_TotalRecvBytes, m_TotalSendBytes, m_GrandTotalRecvBytes, m_GrandTotalSendBytes);
+
+			m_TotalRecvBytes = 0;
+			m_TotalSendBytes = 0;
+			lastBandwidthCheckTime = now;
+		}
+
 		if (now < nextTick)
 		{
 			std::this_thread::sleep_for(nextTick - now);

@@ -3,9 +3,12 @@
 
 #include <string>
 #include <iostream>
+#include <conio.h>
+#include <thread>
 
 const UINT32 MAX_IO_WORKER_THREAD = 4;
 UINT16 g_ServerPort = 11021;
+bool g_IsServerRunning = true;
 
 int main(int argc, char* argv[])
 {
@@ -41,14 +44,23 @@ int main(int argc, char* argv[])
 
     // 예: server.SetRoomNumber(roomNumber);
 
-    server.Run(3);
+    server.Run(10, g_ServerPort);
 
     printf("아무 키나 누를 때까지 대기합니다\n");
-    while (true)
+
+    while (g_IsServerRunning)
     {
-        std::string inputCmd;
-        std::getline(std::cin, inputCmd);
-        if (inputCmd == "quit") break;
+        if (_kbhit())
+        {
+            int ch = _getch();
+            if (ch == 'q' || ch == 'Q')
+            {
+                printf("[System] 수동 종료 요청 확인.\n");
+                break;
+            }
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     server.End();

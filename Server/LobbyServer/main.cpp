@@ -4,17 +4,19 @@
 #include <string>
 #include <iostream>
 #include <spdlog/details/os-inl.h>
+#include <conio.h>
+#include <thread>
 
 class LobbyServer;
 
 const UINT16 SERVER_PORT = 11020;
 const UINT16 MAX_CLIENT = 100;    // 로비는 게임서버보다 접속 인원을 넉넉하게 잡음
 const UINT32 MAX_IO_WORKER_THREAD = 4;
+bool g_IsServerRunning = true;
 
 int main()
 {
 	LobbyServer server;
-
 	sentry_options_t* options = sentry_options_new();
 	sentry_options_set_dsn(options, "https://79824d5b1c51a97749e88cf8667b0b7c@o4510992232873984.ingest.us.sentry.io/4510992622026752");
 	// This is also the default-path. For further information and recommendations:
@@ -39,18 +41,17 @@ int main()
 	printf("아무 키나 누를 때까지 대기합니다\n");
 	while (true)
 	{
-		std::string inputCmd;
-		std::getline(std::cin, inputCmd);
-		if (std::cin.eof() || std::cin.fail())
+		if (_kbhit())
 		{
-			std::cin.clear();
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			continue;
+			int ch = _getch();
+			if (ch == 'q' || ch == 'Q')
+			{
+				printf("[System] 수동 종료 요청 확인.\n");
+				break;
+			}
 		}
-		if (inputCmd == "quit")
-		{
-			break;
-		}
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 
 	server.End();

@@ -66,34 +66,29 @@ public:
 	PacketInfo GetPacket()
 	{
 		std::lock_guard<std::mutex> guard(mLock);
-		const int PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
-		UINT32 remainByte = mPacketDataBufferWPos - mPacketDataBufferRPos;
+		int PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
+		PacketInfo packetInfo;
+		packetInfo.PacketId = 0;
+		packetInfo.DataSize = 0;
+		packetInfo.pDataPtr = nullptr;
 
-		if(remainByte < PACKET_HEADER_LENGTH)
-		{
-			return PacketInfo();
-		}
+		UINT32 remain = mPacketDataBufferWPos - mPacketDataBufferRPos;
+		if (remain < (UINT32)PACKET_HEADER_LENGTH) return packetInfo;
 
 		auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferRPos];
 
-		if (pHeader->PacketLength < PACKET_HEADER_LENGTH || pHeader->PacketLength > 2048)
+		if (pHeader->PacketLength < (UINT32)PACKET_HEADER_LENGTH || pHeader->PacketLength > 2048)
 		{
-			printf("[Critical] TCP Stream Corrupted! (Length: %d). Clearing Buffer.\n", pHeader->PacketLength);
 			mPacketDataBufferWPos = 0;
 			mPacketDataBufferRPos = 0;
-			return PacketInfo();
+			return packetInfo;
 		}
 
-		if (pHeader->PacketLength > remainByte)
-		{
-			return PacketInfo();
-		}
+		if (pHeader->PacketLength > remain) return packetInfo;
 
-		PacketInfo packetInfo;
 		packetInfo.PacketId = pHeader->PacketId;
 		packetInfo.DataSize = pHeader->PacketLength;
 
-		// 직접 포인터 대신 복사본 사용
 		packetInfo.pDataPtr = new char[pHeader->PacketLength];
 		CopyMemory(packetInfo.pDataPtr, &mPacketDataBuffer[mPacketDataBufferRPos], pHeader->PacketLength);
 
@@ -102,26 +97,18 @@ public:
 		return packetInfo;
 	}
 
-	int GetAndEnqueuePendingCount()
+	bool HasPendingPacket()
 	{
 		std::lock_guard<std::mutex> guard(mLock);
-		const int PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
-		int count = 0;
-		UINT32 readPos = mPacketDataBufferRPos;
+		int PACKET_HEADER_LENGTH = sizeof(PACKET_HEADER);
+		UINT32 remain = mPacketDataBufferWPos - mPacketDataBufferRPos;
+		if (remain < (UINT32)PACKET_HEADER_LENGTH) return false;
 
-		while (true)
-		{
-			UINT32 remain = mPacketDataBufferWPos - readPos;
-			if (remain < (UINT32)PACKET_HEADER_LENGTH) break;
+		auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[mPacketDataBufferRPos];
+		if (pHeader->PacketLength < (UINT32)PACKET_HEADER_LENGTH || pHeader->PacketLength > 2048) return false;
+		if (pHeader->PacketLength > remain) return false;
 
-			auto pHeader = (PACKET_HEADER*)&mPacketDataBuffer[readPos];
-			if (pHeader->PacketLength < (UINT32)PACKET_HEADER_LENGTH || pHeader->PacketLength > 2048) break;
-			if (pHeader->PacketLength > remain) break;
-
-			readPos += pHeader->PacketLength;
-			count++;
-		}
-		return count;
+		return true;
 	}
 
 	void SetInventory(int index, int itemID)
